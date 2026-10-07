@@ -439,6 +439,9 @@ window.__ModuleLoader__.load({
       );
     }
 
+    /** Upper bound on rendered diff lines: a huge patch must not freeze the panel. */
+    const MAX_DIFF_LINES = 4000;
+
     /** Render one patch's lines. */
     function DiffCode(props) {
       const { text, binary, truncated, empty, t } = props;
@@ -446,15 +449,22 @@ window.__ModuleLoader__.load({
       if (text === '' || text === undefined) return h('p', { className: 'dsh-git-note' }, empty);
       const files = parsePatch(text);
       const nodes = [];
+      let rendered = 0;
+      let clipped = false;
       for (const file of files) {
-        for (let index = 0; index < file.lines.length; index += 1) {
-          const line = file.lines[index];
-          nodes.push(
-            h('div', { key: `${String(nodes.length)}`, className: `dsh-git-l ${line.kind}` }, line.text || ' '),
-          );
+        for (const line of file.lines) {
+          if (rendered >= MAX_DIFF_LINES) {
+            clipped = true;
+            break;
+          }
+          rendered += 1;
+          nodes.push(h('div', { key: String(nodes.length), className: `dsh-git-l ${line.kind}` }, line.text || ' '));
         }
+        if (clipped) break;
       }
-      if (truncated === true) nodes.push(h('p', { key: 'trunc', className: 'dsh-git-note' }, t('diff.truncated')));
+      if (clipped || truncated === true) {
+        nodes.push(h('p', { key: 'trunc', className: 'dsh-git-note' }, t('diff.truncated')));
+      }
       return h(React.Fragment, null, nodes);
     }
 
@@ -543,31 +553,34 @@ window.__ModuleLoader__.load({
               : null;
         nodes.push(
           h(
-            'button',
+            'div',
             {
               key: entry.key,
-              type: 'button',
-              className: 'dsh-git-row',
+              className: 'dsh-git-rowwrap',
               'data-active': selectedKey === entry.key ? 'true' : 'false',
-              onClick: () => onSelect(entry),
             },
-            h('span', { className: markClass(entry.letter) }, entry.letter),
-            h('span', { className: 'dsh-git-name' }, entry.name),
-            h('span', { className: 'dsh-git-dir' }, entry.dir),
+            h(
+              'button',
+              {
+                type: 'button',
+                className: 'dsh-git-rowmain',
+                onClick: () => onSelect(entry),
+              },
+              h('span', { className: markClass(entry.letter) }, entry.letter),
+              h('span', { className: 'dsh-git-name' }, entry.name),
+              h('span', { className: 'dsh-git-dir' }, entry.dir),
+            ),
             action === null
               ? null
               : h(
-                  'span',
+                  'button',
                   {
+                    type: 'button',
                     className: 'dsh-git-act',
-                    role: 'button',
-                    tabIndex: -1,
                     title: action.label,
                     'aria-label': action.label,
-                    onClick: (event) => {
-                      event.stopPropagation();
-                      action.run();
-                    },
+                    disabled: busy,
+                    onClick: action.run,
                   },
                   group.action === 'stage' ? '⊕' : '⊖',
                 ),
@@ -1178,9 +1191,11 @@ window.__ModuleLoader__.load({
       '.dsh-git-count{margin-left:2px;color:var(--dsw-alias-state-idle-primary)}',
       '.dsh-git-group button{margin-left:auto;border:0;background:0 0;color:var(--dsw-alias-label-secondary);font:inherit;font-size:11px;cursor:pointer;padding:0}',
       '.dsh-git-group button:hover{color:var(--dsw-alias-label-primary)}',
-      '.dsh-git-row{display:flex;align-items:center;gap:6px;width:100%;min-width:0;box-sizing:border-box;padding:3px 8px 3px 10px;border:0;background:0 0;color:inherit;font:inherit;text-align:left;cursor:pointer}',
-      '.dsh-git-row:hover{background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2))}',
-      '.dsh-git-row[data-active="true"]{background:var(--dsw-alias-bg-layer-2)}',
+      '.dsh-git-row{display:flex;align-items:center;gap:6px;width:100%;min-width:0;box-sizing:border-box;padding:3px 8px 3px 10px;color:inherit;font:inherit;text-align:left}',
+      '.dsh-git-rowwrap{display:flex;align-items:center;gap:6px;width:100%;min-width:0;box-sizing:border-box;padding:0 8px 0 10px;cursor:pointer}',
+      '.dsh-git-rowwrap:hover{background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2))}',
+      '.dsh-git-rowwrap[data-active="true"]{background:var(--dsw-alias-bg-layer-2)}',
+      '.dsh-git-rowmain{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:6px;padding:3px 0;border:0;background:0 0;color:inherit;font:inherit;text-align:left;cursor:pointer}',
       '.dsh-git-mark{width:12px;flex:none;text-align:center;font-weight:600;font-size:11px;color:var(--dsw-alias-label-secondary)}',
       '.dsh-git-mark.m{color:var(--dsw-alias-state-warn-primary)}',
       '.dsh-git-mark.a{color:var(--dsw-alias-state-success-primary)}',
@@ -1188,8 +1203,8 @@ window.__ModuleLoader__.load({
       '.dsh-git-name{flex:none;max-width:62%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
       '.dsh-git-dir{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-secondary);font-size:11px}',
       '.dsh-git-hint{flex:none;color:var(--dsw-alias-label-secondary);font-size:11px}',
-      '.dsh-git-act{flex:none;display:none;align-items:center;justify-content:center;width:20px;height:20px;border-radius:4px;color:var(--dsw-alias-label-secondary);font-size:13px;line-height:1}',
-      '.dsh-git-row:hover .dsh-git-act{display:inline-flex}',
+      '.dsh-git-act{flex:none;display:none;align-items:center;justify-content:center;width:20px;height:20px;padding:0;border:0;background:0 0;border-radius:4px;color:var(--dsw-alias-label-secondary);font-size:13px;line-height:1;cursor:pointer}',
+      '.dsh-git-rowwrap:hover .dsh-git-act{display:inline-flex}',
       '.dsh-git-act:hover{background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary)}',
       '.dsh-git-diff{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;border-top:.5px solid var(--dsw-alias-border-l1)}',
       '.dsh-git-diffhead{flex:none;display:flex;align-items:center;gap:6px;height:30px;padding:0 6px 0 10px;color:var(--dsw-alias-label-secondary);font-size:11px}',
