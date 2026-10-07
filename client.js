@@ -506,19 +506,34 @@ window.__ModuleLoader__.load({
       return h(React.Fragment, null, parts);
     }
 
+    /**
+     * Self-contained styles for the Session-header button. That slot renders
+     * outside the tab, so it cannot rely on the panel's stylesheet.
+     */
+    const OPEN_CSS = [
+      '.dsh-git-openbtn{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;border:0;border-radius:4px;background:0 0;color:var(--dsw-alias-label-secondary);cursor:pointer}',
+      '.dsh-git-openbtn:hover{background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2));color:var(--dsw-alias-label-primary)}',
+    ].join('');
+
     /** The button in the Session header that opens this tab. */
     function GitOpenAction(props) {
       const { t, openTab } = props;
       return h(
-        'button',
-        {
-          type: 'button',
-          className: 'dsh-git-tool',
-          title: t('header.open'),
-          'aria-label': t('header.open'),
-          onClick: () => openTab(),
-        },
-        h(GitMark, { size: 15 }),
+        React.Fragment,
+        null,
+        h('style', { key: 'style' }, OPEN_CSS),
+        h(
+          'button',
+          {
+            key: 'button',
+            type: 'button',
+            className: 'dsh-git-openbtn',
+            title: t('header.open'),
+            'aria-label': t('header.open'),
+            onClick: () => openTab(),
+          },
+          h(GitMark, { size: 15 }),
+        ),
       );
     }
 
@@ -836,7 +851,7 @@ window.__ModuleLoader__.load({
           ),
         );
       }
-      if (state.status.repo !== true) {
+      if (state.status === undefined || state.status.repo !== true) {
         return h(
           'div',
           { className: 'dsh-git-root' },
