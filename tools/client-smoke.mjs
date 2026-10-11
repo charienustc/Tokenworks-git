@@ -1451,19 +1451,93 @@ function postTo(harness, path) {
     `${String(afterWrite)} → ${String(headCalls())}`,
   );
 
-  // The reverse direction: switching from the chip must refresh the panel too.
-  const statusCalls = () => h.fetchCalls.filter((call) => call.url.includes('/git-panel/status')).length;
-  h.click(h.byClass('tw-git-dockchip')[0]);
-  await h.settle();
-  h.click(h.byClass('tw-git-dockrow').find((row) => h.text(row).includes('feature')));
-  await h.settle();
-  const beforeSwitch = statusCalls();
-  h.click(h.byText('切换')[0]);
-  await h.settle();
+  // The reverse direction. Counting requests is not enough to prove it - the chip's own
+  // menu also fetches the branch list - so the responder flips which branch is checked
+  // out and the assertion is what the panel then shows.
+  let branchHead = 'main';
+  const synced = createHarness({
+    responder: (url, init) => {
+      const { pathname } = new URL(url, 'http://localhost');
+      if (pathname.endsWith('/checkout')) {
+        branchHead = JSON.parse(String(init.body)).ref;
+        return { ok: true };
+      }
+      if (pathname.endsWith('/branches')) {
+        return {
+          ok: true,
+          refs: BRANCHES_PAYLOAD.refs.map((ref) => ({ ...ref, head: ref.name === branchHead })),
+        };
+      }
+      if (pathname.endsWith('/status')) return statusPayload({ branch: branchHead });
+      if (pathname.endsWith('/head')) {
+        const { status } = statusPayload({ branch: branchHead });
+        return {
+          ok: true,
+          head: {
+            repo: status.repo,
+            cwd: status.cwd,
+            root: status.root,
+            unborn: status.unborn,
+            detached: status.detached,
+            branch: status.branch,
+            head: status.head,
+            shortHead: status.shortHead,
+            upstream: status.upstream,
+            ahead: status.ahead,
+            behind: status.behind,
+          },
+        };
+      }
+      if (pathname.endsWith('/remotes')) return { ok: true, remotes: [] };
+      return { ok: true };
+    },
+  });
+  const syncSessions = (selector) => selector({ byId: { s1: { cwd: ROOT } } });
+  const SyncedBody = synced.bodyComponent();
+  const SyncedDock = synced.captured.slots.find(
+    (entry) => entry.name === 'conversation.composer.dock',
+  ).registered.component;
+  const BothSynced = () =>
+    synced.React.createElement(
+      synced.React.Fragment,
+      null,
+      synced.React.createElement(SyncedBody, {
+        sessionId: 's1',
+        t: synced.t,
+        useSessions: syncSessions,
+        useTabInfo: () => ({ tab: { visible: false } }),
+      }),
+      synced.React.createElement(SyncedDock, { sessionId: 's1', t: synced.t, useSessions: syncSessions }),
+    );
+  synced.render.component = BothSynced;
+  synced.render.props = {};
+  synced.render();
+  await synced.settle();
+  synced.click(synced.byText('分支')[0]);
+  await synced.settle();
+
+  const currentMark = () => {
+    const row = synced.byClass('tw-git-brow').find((node) => synced.text(node).includes('当前'));
+    return row === undefined ? '' : synced.text(row);
+  };
+  check('sync: the panel starts by marking main as current', currentMark().includes('main'), currentMark());
+
+  synced.click(synced.byClass('tw-git-dockchip')[0]);
+  await synced.settle();
+  synced.click(synced.byClass('tw-git-dockrow').find((row) => synced.text(row).includes('feature')));
+  await synced.settle();
+  // Scoped to the chip's own confirmation: the panel's rows carry 切换 buttons too.
+  synced.click(synced.descendants(synced.byClass('tw-git-dockconfirm')[0], (node) => node.type === 'button')[1]);
+  await synced.settle();
   check(
-    'chip: switching from the chip refreshes the panel as well',
-    statusCalls() > beforeSwitch,
-    `${String(beforeSwitch)} → ${String(statusCalls())}`,
+    'sync: a switch from the chip makes the panel re-read the branch list it shows',
+    currentMark().includes('feature'),
+    currentMark(),
+  );
+  check(
+    'sync: the chip follows the new branch as well',
+    synced.text(synced.byClass('tw-git-dockchip')[0]).includes('feature'),
+    synced.text(synced.byClass('tw-git-dockchip')[0]),
   );
 }
 

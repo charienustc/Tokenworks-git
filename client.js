@@ -2276,6 +2276,8 @@ window.__ModuleLoader__.load({
       const [message, setMessage] = useState('');
       const [busy, setBusy] = useState(null);
       const [notice, setNotice] = useState(null);
+      /** Bumped when the repository changed underneath an open view, diff included. */
+      const [repoRevision, setRepoRevision] = useState(0);
       /** Directory rows the user folded shut, keyed `group:dir`. */
       const [folded, setFolded] = useState(() => new Set());
       /** The operation waiting for confirmation, or null when none is pending. */
@@ -2355,7 +2357,8 @@ window.__ModuleLoader__.load({
         return () => {
           live = false;
         };
-      }, [root, selection]);
+        // `repoRevision` re-reads the same selection after a change made elsewhere.
+      }, [root, selection, repoRevision]);
 
       /** Load history when its tab is shown or the ref scope changes. */
       const loadHistory = useCallback(async () => {
@@ -2434,6 +2437,7 @@ window.__ModuleLoader__.load({
             await refresh({ announce: false });
             if (view === 'branches') await loadBranches();
             if (view === 'history') await loadHistory();
+            setRepoRevision((value) => value + 1);
             notifyRepoChanged();
             if (done !== undefined) setNotice({ kind: 'ok', text: done });
           } catch (error) {
@@ -2447,18 +2451,24 @@ window.__ModuleLoader__.load({
 
       // A branch switch made from the composer chip changes this repository too, and
       // that chip is a separate component tree, so it announces itself the same way.
+      // Everything a write would invalidate is reloaded here as well - otherwise the
+      // state updates while the branch list and the open diff stay behind.
       useEffect(() => {
         const listener = () => {
           void refresh({ announce: false });
+          if (view === 'branches') void loadBranches();
+          if (view === 'history') void loadHistory();
+          setRepoRevision((value) => value + 1);
         };
         repoListeners.add(listener);
         return () => {
           repoListeners.delete(listener);
         };
-      }, [refresh]);
+      }, [loadBranches, loadHistory, refresh, view]);
 
       /** Follow a path that changes section, so an open diff stays truthful. */
-      const follow = useCallback((paths, side, prefix) => {        setSelection((current) =>
+      const follow = useCallback((paths, side, prefix) => {
+        setSelection((current) =>
           current !== null && paths.includes(current.path)
             ? { ...current, side, key: `${prefix}:${current.path}` }
             : current,
