@@ -31,6 +31,13 @@ window.__ModuleLoader__.load({
     const REFRESH_MS = 5000;
     /** Backstop cadence for the composer branch chip; writes announce themselves. */
     const DOCK_REFRESH_MS = 5000;
+    /** Static locale keys: an open operation's banner needs one, keyed by name. */
+    const OPERATION_LABEL = {
+      merge: 'operation.merge',
+      'cherry-pick': 'operation.cherry-pick',
+      revert: 'operation.revert',
+      rebase: 'operation.rebase',
+    };
 
     /** Simplified Chinese dictionary and key-set source of truth. */
     const zh = {
@@ -71,6 +78,15 @@ window.__ModuleLoader__.load({
       'commit.noIdentity': '这个仓库还没有配置 user.name / user.email，无法提交。',
       'commit.busy': '正在提交…',
       'commit.done': '已提交 {hash}',
+      'operation.merge': '合并未完成',
+      'operation.cherry-pick': '拣选未完成',
+      'operation.revert': '还原未完成',
+      'operation.rebase': '变基未完成',
+      'operation.hint': '解决「冲突」组里的文件后暂存并提交；或放弃这次操作。',
+      'operation.abort': '放弃这次操作',
+      'operation.aborted': '已放弃这次操作',
+      'confirm.abortDetail': '会回到操作前的状态，已经做的冲突解决会丢失。',
+      'diff.conflictNote': '冲突文件：下面是当前内容（含 <<<<<<< 标记）。解决后暂存即表示冲突已解决。',
       'diff.empty': '这个文件没有可显示的差异。',
       'diff.binary': '二进制文件，无法显示文本差异。',
       'diff.truncated': '差异过大，只显示了一部分。',
@@ -199,6 +215,15 @@ window.__ModuleLoader__.load({
       'commit.noIdentity': 'This repository has no user.name / user.email, so it cannot commit.',
       'commit.busy': 'Committing…',
       'commit.done': 'Committed {hash}',
+      'operation.merge': 'Merge in progress',
+      'operation.cherry-pick': 'Cherry-pick in progress',
+      'operation.revert': 'Revert in progress',
+      'operation.rebase': 'Rebase in progress',
+      'operation.hint': 'Resolve the files in the Conflicts group, then stage and commit; or abandon it.',
+      'operation.abort': 'Abandon it',
+      'operation.aborted': 'Abandoned',
+      'confirm.abortDetail': 'Returns to the state before it started; resolutions made so far are lost.',
+      'diff.conflictNote': 'Conflicted file: this is the current content, markers included. Staging it marks the conflict resolved.',
       'diff.empty': 'No text difference to show.',
       'diff.binary': 'Binary file: no text diff.',
       'diff.truncated': 'The diff is large; only part of it is shown.',
@@ -390,6 +415,7 @@ window.__ModuleLoader__.load({
       sync: (root, action, extra) => post(`${API}/sync`, { root, action, ...(extra ?? {}) }),
       discard: (root, paths) => post(`${API}/discard`, { root, paths }),
       undo: (root, action, rev, mode) => post(`${API}/undo`, { root, action, rev, mode }),
+      abort: (root, operation) => post(`${API}/abort`, { root, operation }),
     };
 
     /** Split a repository-relative path into its display name and directory. */
@@ -1248,14 +1274,21 @@ window.__ModuleLoader__.load({
             : diff.phase === 'error'
               ? h('p', { className: 'tw-git-note error' }, String(diff.error.message))
               : diff.phase === 'ready' && diff.diff !== undefined && diff.diff !== null
-                ? h(DiffCode, {
-                    text: diff.diff.text,
-                    binary: diff.diff.binary,
-                    truncated: diff.diff.truncated,
-                    empty: t('diff.empty'),
-                    resetKey: selection.key,
-                    t,
-                  })
+                ? h(
+                    React.Fragment,
+                    null,
+                    diff.diff.conflicted === true
+                      ? h('p', { key: 'conflictnote', className: 'tw-git-note' }, t('diff.conflictNote'))
+                      : null,
+                    h(DiffCode, {
+                      text: diff.diff.text,
+                      binary: diff.diff.binary,
+                      truncated: diff.diff.truncated,
+                      empty: t('diff.empty'),
+                      resetKey: selection.key,
+                      t,
+                    }),
+                  )
                 : null,
         ),
       );
@@ -2640,6 +2673,20 @@ window.__ModuleLoader__.load({
         [ask, root, t],
       );
 
+      /** Conflicts leave an operation open; abandoning it needs a confirmation. */
+      const abortOperation = useCallback(() => {
+        const operation = state.phase === 'ready' && state.status.repo === true ? state.status.operation : null;
+        if (operation === null || operation === undefined) return;
+        ask({
+          title: t('operation.abort'),
+          detail: t('confirm.abortDetail'),
+          label: t('operation.abort'),
+          danger: true,
+          run: () => api.abort(root, operation),
+          done: t('operation.aborted'),
+        });
+      }, [ask, root, state, t]);
+
       const groups = useMemo(() => {
         if (state.phase !== 'ready' || state.status.repo !== true) return [];
         const status = state.status;
@@ -2659,12 +2706,16 @@ window.__ModuleLoader__.load({
                       ? entry.x || 'M'
                       : side === 'worktree'
                         ? entry.y || 'M'
-                        : '?',
+                        : side === 'conflict'
+                          ? entry.x || 'U'
+                          : '?',
                   ...splitPath(entry.path),
                 })),
               };
         return [
-          build('conflicted', t('group.conflicted'), status.changes.conflicted, 'worktree', null),
+          // A conflicted path is diffed from its own content, not from `git diff`,
+          // which answers with the combined format the parser cannot read.
+          build('conflicted', t('group.conflicted'), status.changes.conflicted, 'conflict', null),
           build('staged', t('group.staged'), status.changes.staged, 'index', 'unstage'),
           build('unstaged', t('group.unstaged'), status.changes.unstaged, 'worktree', 'stage'),
           build('untracked', t('group.untracked'), status.changes.untracked, 'untracked', 'stage'),
@@ -2848,6 +2899,32 @@ window.__ModuleLoader__.load({
         });
       }
 
+      // A conflict is repository-wide state, so its banner sits above the tabs rather
+      // than inside the changes view, and says which operation is still open.
+      const operationNode =
+        state.phase === 'ready' && state.status.repo === true && state.status.operation !== null && state.status.operation !== undefined
+          ? h(
+              'div',
+              { className: 'tw-git-operation' },
+              h(
+                'span',
+                { className: 'tw-git-operationtitle' },
+                t(OPERATION_LABEL[state.status.operation] ?? 'operation.merge'),
+              ),
+              h('span', { className: 'tw-git-operationhint' }, t('operation.hint')),
+              h(
+                'button',
+                {
+                  type: 'button',
+                  className: 'tw-git-ghost danger',
+                  disabled: busy !== null,
+                  onClick: abortOperation,
+                },
+                t('operation.abort'),
+              ),
+            )
+          : null;
+
       const dialog =
         confirm === null
           ? null
@@ -2859,11 +2936,14 @@ window.__ModuleLoader__.load({
               t,
             });
 
-      return h('div', { className: 'tw-git-root' }, style, header, tabs, noticeNode, body, dialog);
+      return h('div', { className: 'tw-git-root' }, style, header, operationNode, tabs, noticeNode, body, dialog);
     }
 
     /** Panel styles: theme tokens only, prefixed classes, no global selectors. */
     const CSS = [
+      '.tw-git-operation{flex:none;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 10px;border-bottom:.5px solid var(--dsw-alias-border-l1);background:color-mix(in srgb,var(--dsw-alias-state-warn-primary) 12%,transparent)}',
+      '.tw-git-operationtitle{flex:none;color:var(--dsw-alias-state-warn-primary);font-size:12px;font-weight:600}',
+      '.tw-git-operationhint{flex:1 1 auto;min-width:0;color:var(--dsw-alias-label-secondary);font-size:11px}',
       '.tw-git-root{position:relative;height:100%;min-height:0;flex:auto;display:flex;flex-direction:column;color:var(--dsw-alias-label-primary);font-size:var(--dsh-content-font-size-secondary,13px);line-height:1.5}',
       '.tw-git-spacer{flex:1 1 auto;min-width:0}',
       '.tw-git-head{flex:none;display:flex;flex-direction:column;gap:2px;padding:8px 6px 7px 12px;border-bottom:.5px solid var(--dsw-alias-border-l1)}',

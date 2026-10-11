@@ -181,7 +181,7 @@ export function apply(ctx, config) {
         const root = await queryRoot(url);
         const side = url.searchParams.get('side') ?? 'worktree';
         if (side !== 'worktree' && side !== 'index' && side !== 'untracked') {
-          throw new GitError('side 只能是 worktree、index 或 untracked', { code: 'bad-request' });
+          throw new GitError('side 只能是 worktree、index、untracked 或 conflict', { code: 'bad-request' });
         }
         const result = await git.diff(root, { side, path: url.searchParams.get('path') ?? '' });
         json(res, 200, { ok: true, diff: result });
@@ -341,6 +341,16 @@ export function apply(ctx, config) {
           throw new GitError('action 只能是 reset、revert、cherry-pick 或 merge', { code: 'bad-request' });
         });
         json(res, 200, { ok: true, undo: { action, rev } });
+      }),
+    },
+    {
+      path: `${BASE}/abort`,
+      POST: guarded(async (req, res) => {
+        const body = await jsonBody(req);
+        const root = await git.allowedRoot(body.root ?? '');
+        const operation = String(body.operation ?? '');
+        await serialize(() => git.abort(root, operation));
+        json(res, 200, { ok: true, abort: { operation } });
       }),
     },
   ];

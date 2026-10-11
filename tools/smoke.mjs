@@ -654,6 +654,62 @@ check(
 );
 await git.discard(scratch, ['中文名.txt']);
 
+// --- conflicts: the open operation, a readable view, and abandoning it ---------
+await git.checkout(scratch, 'main', {});
+await git.createBranch(scratch, 'probe/other', null, true);
+await writeFile(join(scratch, 'conflict.txt'), 'from other\n', 'utf8');
+await git.stage(scratch, ['conflict.txt']);
+await git.commit(scratch, 'probe: other side');
+await git.checkout(scratch, 'main', {});
+await writeFile(join(scratch, 'conflict.txt'), 'from main\n', 'utf8');
+await git.stage(scratch, ['conflict.txt']);
+await git.commit(scratch, 'probe: main side');
+
+let conflictError = null;
+try {
+  await git.merge(scratch, 'probe/other');
+} catch (error) {
+  conflictError = error;
+}
+check(
+  'conflict: the failure names the conflict, not the progress line before it',
+  conflictError !== null && /CONFLICT/.test(conflictError.message),
+  conflictError && conflictError.message,
+);
+
+const during = await git.status(scratch);
+check('conflict: status names the open operation', during.operation === 'merge', JSON.stringify(during.operation));
+check(
+  'conflict: the unmerged path lands in the conflicts group',
+  during.changes.conflicted.some((entry) => entry.path === 'conflict.txt'),
+  JSON.stringify(during.changes.conflicted.map((entry) => entry.path)),
+);
+
+const conflictDiff = await git.diff(scratch, { side: 'conflict', path: 'conflict.txt' });
+check(
+  'conflict: the file view carries the conflict markers',
+  conflictDiff.conflicted === true &&
+    conflictDiff.text.includes('<<<<<<<') &&
+    conflictDiff.text.includes('>>>>>>>'),
+  JSON.stringify(conflictDiff.text.split('\n').slice(0, 2)),
+);
+
+let badAbort = null;
+try {
+  await git.abort(scratch, '--hard');
+} catch (error) {
+  badAbort = error;
+}
+check('conflict: abandoning accepts only a known operation', badAbort !== null && badAbort.code === 'bad-request');
+
+await git.abort(scratch, 'merge');
+const resolved = await git.status(scratch);
+check(
+  'conflict: abandoning the merge clears the operation and the conflicts',
+  resolved.operation === null && resolved.changes.conflicted.length === 0,
+  JSON.stringify({ operation: resolved.operation, conflicted: resolved.changes.conflicted.length }),
+);
+
 await rm(remoteDir, { recursive: true, force: true });
 await rm(scratch, { recursive: true, force: true });
 console.log(

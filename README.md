@@ -25,6 +25,7 @@ USTC Tokenworks 的**会话右侧栏 Git 面板**：改动清单、统一 diff�
 | 撤销与重写 | 放弃改动、`revert`、`cherry-pick`、`reset --soft/--mixed`、检出任意提交 |
 | 主题与语言 | 跟随 USTC Tokenworks 的浅色 / 深色；文案中英双语 |
 | 输入框下的分支胶囊 | 不用打开面板就能看到当前分支与领先 / 落后，点开即可切换（切换前确认） |
+| 冲突处理 | 冲突文件单列一组，点开显示**含冲突标记的当前内容**；顶部横幅说明哪个操作还没结束，可一键放弃 |
 
 面板不注册任何 agent 工具，也不依赖任何第三方库。
 
@@ -86,6 +87,7 @@ https://git.ustc.edu.cn/Charien/tokenworks-git-panel.git
 | 推送 | `push`（该分支还没有上游时自动 `-u <remote> <branch>`） |
 | 重置 | `reset --soft` / `reset --mixed` |
 | 还原 / 拣选 / 合并 | `revert --no-edit` / `cherry-pick` / `merge --no-edit` |
+| 放弃未完成的操作 | `merge --abort` / `cherry-pick --abort` / `revert --abort` / `rebase --abort` |
 
 不提供 `push --force`、`branch -D`、`checkout --force`、`reset --hard`、`rebase`，也不会删除未跟踪文件。
 
@@ -116,7 +118,7 @@ https://git.ustc.edu.cn/Charien/tokenworks-git-panel.git
 
 | 路径 | 作用 |
 | --- | --- |
-| [`index.js`](index.js) | Host 半：17 个端点、信任栅栏、错误码到 HTTP 状态的映射、写操作串行队列 |
+| [`index.js`](index.js) | Host 半：18 个端点、信任栅栏、错误码到 HTTP 状态的映射、写操作串行队列 |
 | [`lib/git.js`](lib/git.js) | git 适配器：命令表、porcelain v2 解析、名称 / rev / 路径守卫 |
 | [`client.js`](client.js) | Client 半：页签、三个视图、diff 查看器、提交图、确认弹窗、样式 |
 | [`cordis.patch.yml`](cordis.patch.yml) | bundle patch：把插件插进当前 profile |
@@ -130,7 +132,7 @@ https://git.ustc.edu.cn/Charien/tokenworks-git-panel.git
 pnpm test          # 或：node tools/smoke.mjs && node tools/client-smoke.mjs
 ```
 
-Host 68 条 + Client 134 条断言。前者对着临时仓库跑真实 git（含用本地裸仓库做远程同步的端到端），后者用微型 React 运行时渲染面板。
+Host 74 条 + Client 144 条断言。前者对着临时仓库跑真实 git（含用本地裸仓库做远程同步的端到端），后者用微型 React 运行时渲染面板。
 
 代码里没有平台专有分支，但**目前只在 Windows 上实测过**。受限沙箱里 git 的远程命令会因无法创建命名管道而显示 `SKIP`，不受限时真实执行。
 

@@ -1467,5 +1467,84 @@ function postTo(harness, path) {
   );
 }
 
+// ==============================================================================
+// Scenario: an open conflict is announced, explained, and can be abandoned
+// ==============================================================================
+{
+  const conflicted = statusPayload();
+  conflicted.status.operation = 'merge';
+  conflicted.status.changes.conflicted = [
+    { kind: 'conflicted', x: 'U', y: 'U', path: 'conflict.txt', origPath: null },
+  ];
+  conflicted.status.changes.total += 1;
+  const h = createHarness({
+    responder: (url) => {
+      const { pathname } = new URL(url, 'http://localhost');
+      if (pathname.endsWith('/status')) return conflicted;
+      if (pathname.endsWith('/diff')) {
+        return {
+          ok: true,
+          diff: {
+            text: 'diff --git a/conflict.txt b/conflict.txt\nnew file mode 100644\n--- /dev/null\n+++ b/conflict.txt\n@@ -0,0 +1,5 @@\n+<<<<<<< HEAD\n+from main\n+=======\n+from other\n+>>>>>>> probe/other\n',
+            conflicted: true,
+            binary: false,
+            truncated: false,
+          },
+        };
+      }
+      if (pathname.endsWith('/abort')) return { ok: true, abort: { operation: 'merge' } };
+      if (pathname.endsWith('/remotes')) return { ok: true, remotes: [] };
+      return { ok: true };
+    },
+  });
+  await h.mountBody();
+
+  check('conflict: the panel announces the open operation', h.text().includes('合并未完成'), h.text());
+  check('conflict: the banner says how to finish it', h.text().includes('暂存并提交'));
+  check('conflict: the conflicted file is listed as its own group', h.text().includes('冲突'));
+
+  const conflictRow = h.byClass('tw-git-filemain').find((node) => h.text(node).includes('conflict.txt'));
+  check('conflict: the conflicted path has a row', conflictRow !== undefined);
+  h.click(conflictRow);
+  await h.settle();
+  const diffCall = h.fetchCalls.filter((call) => call.url.includes('/git-panel/diff')).at(-1);
+  check(
+    'conflict: the diff asks for the conflict side, never the combined format',
+    diffCall !== undefined && diffCall.url.includes('side=conflict'),
+    diffCall && diffCall.url,
+  );
+  check('conflict: the panel explains what this view shows', h.text().includes('冲突文件'));
+  check('conflict: the markers are rendered as content', h.text().includes('<<<<<<<'));
+
+  // Cancelling must send nothing; confirming posts the operation.
+  const before = h.fetchCalls.length;
+  h.click(h.byText('放弃这次操作')[0]);
+  await h.settle();
+  const dialog = h.byClass('tw-git-dialog')[0];
+  check(
+    'conflict: abandoning it asks first and warns what is lost',
+    dialog !== undefined && h.text(dialog).includes('冲突解决会丢失'),
+    dialog && h.text(dialog),
+  );
+  h.click(h.descendants(dialog, (node) => node.type === 'button')[0]);
+  await h.settle();
+  check(
+    'conflict: cancelling sends no abort',
+    postTo(h, '/abort') === undefined && h.fetchCalls.length === before,
+    h.fetchCalls.length - before,
+  );
+
+  h.click(h.byText('放弃这次操作')[0]);
+  await h.settle();
+  h.click(h.descendants(h.byClass('tw-git-dialog')[0], (node) => node.type === 'button')[1]);
+  await h.settle();
+  const abortCall = postTo(h, '/abort');
+  check(
+    'conflict: confirming posts the operation to abandon',
+    abortCall !== undefined && abortCall.body.operation === 'merge',
+    JSON.stringify(abortCall && abortCall.body),
+  );
+}
+
 console.log(failures === 0 ? '\nALL PASS' : `\n${String(failures)} FAILURE(S)`);
 process.exit(failures === 0 ? 0 : 1);
