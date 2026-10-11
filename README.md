@@ -19,9 +19,20 @@ plugin_manager install_bundle  target = F:\dsh-git
 
 面板分三个页签：
 
-- **改动**：冲突 / 已暂存 / 未暂存 / 未跟踪分组；点文件看 diff；每行 hover 出现 ⊕（暂存）与 ⊖（取消暂存）；底部是提交框。
+- **改动**：冲突 / 已暂存 / 未暂存 / 未跟踪分组，按目录折叠；工具栏支持全部暂存 / 全部取消暂存；点文件看 diff；行操作按钮常显、hover 增强；底部是提交框（Ctrl/⌘+Enter 提交）。
 - **历史**：提交图（按 parents 计算泳道）、引用 chip、点击进入该提交的详情与补丁。
 - **分支**：本地分支 / 远程分支 / 标签，含上游与领先落后。
+
+diff 查看器带行号与 hunk 折叠；单行替换会用 mark 高亮改动的那一两个词。
+
+## 测试
+
+```
+pnpm test          # 或：node tools/smoke.mjs && node tools/client-smoke.mjs
+```
+
+- `tools/smoke.mjs`：Host 半，对着临时仓库跑 git 参数与解析器（25 项断言）。
+- `tools/client-smoke.mjs`：Client 半，用一个微型 React 运行时把面板渲染到桩 Host API 上（55 项断言：分组、目录折叠、diff 行号/词级高亮/hunk 折叠、暂存/提交流程、历史与分支、空态与错误重试）。
 
 ## 配置
 

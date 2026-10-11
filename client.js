@@ -83,6 +83,23 @@ window.__ModuleLoader__.load({
       'branches.tag': '标签',
       'branches.empty': '没有分支。',
       'branches.current': '当前',
+      'state.refreshing': '正在刷新…',
+      'state.notRepoTitle': '不是 git 仓库',
+      'state.workspace': '工作区目录',
+      'empty.changesTitle': '工作区干净',
+      'changes.total': '{n} 个改动',
+      'action.stageAll': '全部暂存',
+      'action.diff': '查看差异',
+      'dir.root': '根目录',
+      'diff.collapse': '折叠这段改动',
+      'diff.expand': '展开这段改动',
+      'diff.stat': '+{adds} −{dels}',
+      'notice.staged': '已暂存 {n} 个文件',
+      'notice.unstaged': '已取消暂存 {n} 个文件',
+      'commit.submitCount': '提交 {n} 个文件',
+      'commit.shortcut': 'Ctrl/⌘ + Enter',
+      'history.count': '{n} 次提交',
+      'branches.count': '{n} 个引用',
       'common.error': '出错了',
     };
 
@@ -139,6 +156,23 @@ window.__ModuleLoader__.load({
       'branches.tag': 'Tags',
       'branches.empty': 'No branches.',
       'branches.current': 'current',
+      'state.refreshing': 'Refreshing…',
+      'state.notRepoTitle': 'Not a git repository',
+      'state.workspace': 'Workspace directory',
+      'empty.changesTitle': 'Working tree clean',
+      'changes.total': '{n} change(s)',
+      'action.stageAll': 'Stage all',
+      'action.diff': 'Show the diff',
+      'dir.root': 'root',
+      'diff.collapse': 'Collapse this hunk',
+      'diff.expand': 'Expand this hunk',
+      'diff.stat': '+{adds} −{dels}',
+      'notice.staged': 'Staged {n} file(s)',
+      'notice.unstaged': 'Unstaged {n} file(s)',
+      'commit.submitCount': 'Commit {n} file(s)',
+      'commit.shortcut': 'Ctrl/⌘ + Enter',
+      'history.count': '{n} commit(s)',
+      'branches.count': '{n} ref(s)',
       'common.error': 'Something went wrong',
     };
 
@@ -249,49 +283,162 @@ window.__ModuleLoader__.load({
       return 'dsh-git-mark m';
     }
 
-    /** The line classes a unified diff uses. */
-    function classifyLine(line) {
-      if (line.startsWith('@@')) return 'hunk';
-      if (line.startsWith('+++') || line.startsWith('---')) return 'meta';
-      if (line.startsWith('+')) return 'add';
-      if (line.startsWith('-')) return 'del';
-      if (
-        line.startsWith('diff --git') ||
-        line.startsWith('index ') ||
-        line.startsWith('new file') ||
-        line.startsWith('deleted file') ||
-        line.startsWith('old mode') ||
-        line.startsWith('new mode') ||
-        line.startsWith('similarity index') ||
-        line.startsWith('rename from') ||
-        line.startsWith('rename to') ||
-        line.startsWith('Binary files') ||
-        line.startsWith('\\')
-      ) {
-        return 'meta';
-      }
-      return 'ctx';
+    /**
+     * One patch line's role inside a hunk. Anything that is neither a context,
+     * an addition nor a deletion (a "\ No newline" marker, say) stays inert.
+     */
+    function lineKind(line) {
+      const first = line.charAt(0);
+      if (first === '+') return 'add';
+      if (first === '-') return 'del';
+      if (first === ' ') return 'ctx';
+      if (first === '') return 'ctx';
+      return 'meta';
     }
 
-    /** Split one patch into per-file sections with add/delete counts. */
-    function parsePatch(text) {
-      const files = [];
-      let current = null;
-      for (const line of String(text ?? '').split('\n')) {
-        if (line.startsWith('diff --git ')) {
-          current = { header: line, lines: [], adds: 0, dels: 0, path: patchPath(line) };
-          files.push(current);
+    /** `@@ -a,b +c,d @@` → the first old and new line numbers of one hunk. */
+    function parseHunkHeader(line) {
+      const match = /^@@+ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(line);
+      if (match === null) return { oldStart: 0, newStart: 0 };
+      return { oldStart: Number(match[1]), newStart: Number(match[2]) };
+    }
+
+    /** Length of the shared leading run of two strings. */
+    function commonPrefix(left, right) {
+      const limit = Math.min(left.length, right.length);
+      let index = 0;
+      while (index < limit && left.charAt(index) === right.charAt(index)) index += 1;
+      return index;
+    }
+
+    /** Length of the shared trailing run, never crossing the shared prefix. */
+    function commonSuffix(left, right, prefix) {
+      const limit = Math.min(left.length, right.length) - prefix;
+      let index = 0;
+      while (
+        index < limit &&
+        left.charAt(left.length - 1 - index) === right.charAt(right.length - 1 - index)
+      ) {
+        index += 1;
+      }
+      return index;
+    }
+
+    /** Split one side of a replaced line into unchanged and changed runs. */
+    function inlineSegments(text, prefix, suffix) {
+      const parts = [];
+      if (prefix > 0) parts.push({ text: text.slice(0, prefix), changed: false });
+      const end = text.length - suffix;
+      if (end > prefix) parts.push({ text: text.slice(prefix, end), changed: true });
+      if (suffix > 0) parts.push({ text: text.slice(text.length - suffix), changed: false });
+      return parts;
+    }
+
+    /**
+     * Highlight the word-level change between one deleted and one added line.
+     * Trivial and very long replacements stay plain on purpose: there the marks
+     * would be noise rather than information.
+     */
+    function applyInline(del, add) {
+      const left = del.text.slice(1);
+      const right = add.text.slice(1);
+      if (left.length > 500 || right.length > 500) return;
+      const prefix = commonPrefix(left, right);
+      const suffix = commonSuffix(left, right, prefix);
+      if (prefix + suffix < 4) return;
+      del.segments = inlineSegments(left, prefix, suffix);
+      add.segments = inlineSegments(right, prefix, suffix);
+    }
+
+    /** Mark word-level changes inside every replaced-line pair of one hunk. */
+    function annotateHunk(hunk) {
+      const rows = hunk.lines;
+      let index = 0;
+      while (index < rows.length) {
+        if (rows[index].kind !== 'del') {
+          index += 1;
           continue;
         }
-        if (current === null) {
-          if (line === '') continue;
-          current = { header: '', lines: [], adds: 0, dels: 0, path: null };
-          files.push(current);
+        let dels = index;
+        while (dels < rows.length && rows[dels].kind === 'del') dels += 1;
+        let adds = dels;
+        while (adds < rows.length && rows[adds].kind === 'add') adds += 1;
+        // Pair one-for-one replacements only; block rewrites read better plain.
+        if (dels - index === 1 && adds - dels === 1) applyInline(rows[index], rows[dels]);
+        index = adds;
+      }
+    }
+
+    /**
+     * Split one patch into files, hunks and numbered lines. Every line carries
+     * its old and new number so the viewer can draw a gutter, and replaced pairs
+     * carry the inline highlight segments computed above.
+     */
+    function parseFilePatch(text) {
+      const files = [];
+      const raw = String(text ?? '').split('\n');
+      let file = null;
+      let hunk = null;
+      let oldNo = 0;
+      let newNo = 0;
+      for (let index = 0; index < raw.length; index += 1) {
+        const line = raw[index];
+        // A patch ends with a newline: drop the empty tail it produces.
+        if (line === '' && index === raw.length - 1) continue;
+        if (line.startsWith('diff --git ')) {
+          file = {
+            header: line,
+            path: patchPath(line),
+            meta: [],
+            hunks: [],
+            adds: 0,
+            dels: 0,
+            binary: false,
+          };
+          files.push(file);
+          hunk = null;
+          continue;
         }
-        const kind = classifyLine(line);
-        if (kind === 'add') current.adds += 1;
-        else if (kind === 'del') current.dels += 1;
-        current.lines.push({ kind, text: line });
+        if (file === null) {
+          if (line === '') continue;
+          file = { header: '', path: null, meta: [], hunks: [], adds: 0, dels: 0, binary: false };
+          files.push(file);
+          hunk = null;
+        }
+        if (line.startsWith('@@')) {
+          const start = parseHunkHeader(line);
+          hunk = { header: line, oldStart: start.oldStart, newStart: start.newStart, lines: [] };
+          oldNo = start.oldStart;
+          newNo = start.newStart;
+          file.hunks.push(hunk);
+          continue;
+        }
+        if (hunk === null) {
+          file.meta.push(line);
+          if (line.startsWith('Binary files')) file.binary = true;
+          continue;
+        }
+        const kind = lineKind(line);
+        let oldNumber = null;
+        let newNumber = null;
+        if (kind === 'add') {
+          newNumber = newNo;
+          newNo += 1;
+          file.adds += 1;
+        } else if (kind === 'del') {
+          oldNumber = oldNo;
+          oldNo += 1;
+          file.dels += 1;
+        } else if (kind === 'ctx') {
+          oldNumber = oldNo;
+          newNumber = newNo;
+          oldNo += 1;
+          newNo += 1;
+        }
+        hunk.lines.push({ kind, text: line, old: oldNumber, new: newNumber, segments: null });
+      }
+      for (const entry of files) {
+        for (const entryHunk of entry.hunks) annotateHunk(entryHunk);
       }
       return files;
     }
@@ -305,11 +452,10 @@ window.__ModuleLoader__.load({
 
     /** Best-effort per-file status letter for a commit patch. */
     function patchStatus(section) {
-      for (const line of section.lines) {
-        if (line.kind !== 'meta') continue;
-        if (line.text.startsWith('new file')) return 'A';
-        if (line.text.startsWith('deleted file')) return 'D';
-        if (line.text.startsWith('rename from')) return 'R';
+      for (const line of section.meta) {
+        if (line.startsWith('new file')) return 'A';
+        if (line.startsWith('deleted file')) return 'D';
+        if (line.startsWith('rename from')) return 'R';
       }
       return 'M';
     }
@@ -442,23 +588,133 @@ window.__ModuleLoader__.load({
     /** Upper bound on rendered diff lines: a huge patch must not freeze the panel. */
     const MAX_DIFF_LINES = 4000;
 
-    /** Render one patch's lines. */
+    /** The sign the gutter shows for one diff line. */
+    function lineSign(line) {
+      if (line.kind === 'add') return '+';
+      if (line.kind === 'del') return '−';
+      return '';
+    }
+
+    /** One line's text, with the word-level marks of a replaced pair applied. */
+    function lineText(line) {
+      if (line.kind === 'meta') return line.text;
+      if (line.segments === null || line.segments === undefined) return line.text.slice(1);
+      return line.segments.map((part, index) =>
+        part.changed
+          ? h('mark', { key: String(index), className: 'dsh-git-word' }, part.text)
+          : h('span', { key: String(index) }, part.text),
+      );
+    }
+
+    /**
+     * Render one patch as a numbered, foldable file/hunk tree. A folded hunk is
+     * skipped entirely, which also makes folding the escape hatch for huge diffs.
+     */
     function DiffCode(props) {
-      const { text, binary, truncated, empty, t } = props;
+      const { text, binary, truncated, empty, t, resetKey } = props;
+      const files = useMemo(
+        () => (typeof text === 'string' && text !== '' ? parseFilePatch(text) : []),
+        [text],
+      );
+      const [folded, setFolded] = useState(() => new Set());
+      useEffect(() => {
+        setFolded(new Set());
+      }, [resetKey]);
       if (binary === true) return h('p', { className: 'dsh-git-note' }, t('diff.binary'));
-      if (text === '' || text === undefined) return h('p', { className: 'dsh-git-note' }, empty);
-      const files = parsePatch(text);
+      if (text === '' || text === undefined || text === null) {
+        return h('p', { className: 'dsh-git-note' }, empty);
+      }
       const nodes = [];
       let rendered = 0;
       let clipped = false;
-      for (const file of files) {
-        for (const line of file.lines) {
-          if (rendered >= MAX_DIFF_LINES) {
-            clipped = true;
-            break;
+      const toggle = (key) =>
+        setFolded((current) => {
+          const next = new Set(current);
+          if (next.has(key)) next.delete(key);
+          else next.add(key);
+          return next;
+        });
+      const line = (key, kind, oldNo, newNo, sign, content) =>
+        h(
+          'div',
+          { key, className: `dsh-git-line ${kind}` },
+          h('span', { className: 'dsh-git-lno' }, oldNo === null ? '' : oldNo),
+          h('span', { className: 'dsh-git-lno' }, newNo === null ? '' : newNo),
+          h('span', { className: 'dsh-git-sign' }, sign),
+          h('span', { className: 'dsh-git-text' }, content),
+        );
+      const named = files.length > 1;
+      for (let fileIndex = 0; fileIndex < files.length; fileIndex += 1) {
+        const file = files[fileIndex];
+        if (named) {
+          nodes.push(
+            h(
+              'div',
+              { key: `fh${String(fileIndex)}`, className: 'dsh-git-filehead' },
+              h('span', { className: 'dsh-git-filepath', title: file.path ?? '' }, file.path ?? '?'),
+              h(
+                'span',
+                { className: 'dsh-git-filestat' },
+                t('diff.stat', { adds: file.adds, dels: file.dels }),
+              ),
+            ),
+          );
+        }
+        if (file.hunks.length === 0) {
+          for (let metaIndex = 0; metaIndex < file.meta.length; metaIndex += 1) {
+            if (rendered >= MAX_DIFF_LINES) {
+              clipped = true;
+              break;
+            }
+            rendered += 1;
+            nodes.push(
+              line(`m${String(fileIndex)}:${String(metaIndex)}`, 'meta', null, null, '', file.meta[metaIndex]),
+            );
           }
-          rendered += 1;
-          nodes.push(h('div', { key: String(nodes.length), className: `dsh-git-l ${line.kind}` }, line.text || ' '));
+        }
+        for (let hunkIndex = 0; hunkIndex < file.hunks.length; hunkIndex += 1) {
+          const hunk = file.hunks[hunkIndex];
+          const key = `${String(fileIndex)}:${String(hunkIndex)}`;
+          const isFolded = folded.has(key);
+          nodes.push(
+            h(
+              'div',
+              { key: `h${key}`, className: 'dsh-git-hunkrow' },
+              h(
+                'button',
+                {
+                  type: 'button',
+                  className: 'dsh-git-hunkbtn',
+                  title: isFolded ? t('diff.expand') : t('diff.collapse'),
+                  'aria-label': isFolded ? t('diff.expand') : t('diff.collapse'),
+                  'aria-expanded': isFolded ? 'false' : 'true',
+                  onClick: () => toggle(key),
+                },
+                isFolded ? '▸' : '▾',
+              ),
+              h('span', { className: 'dsh-git-hunktext' }, hunk.header),
+            ),
+          );
+          if (isFolded) continue;
+          for (let lineIndex = 0; lineIndex < hunk.lines.length; lineIndex += 1) {
+            if (rendered >= MAX_DIFF_LINES) {
+              clipped = true;
+              break;
+            }
+            rendered += 1;
+            const entry = hunk.lines[lineIndex];
+            nodes.push(
+              line(
+                `l${key}:${String(lineIndex)}`,
+                entry.kind,
+                entry.old,
+                entry.new,
+                lineSign(entry),
+                lineText(entry),
+              ),
+            );
+          }
+          if (clipped) break;
         }
         if (clipped) break;
       }
@@ -537,70 +793,576 @@ window.__ModuleLoader__.load({
       );
     }
 
-    /** One section of the change list. */
-    function ChangeGroup(props) {
-      const { group, selectedKey, onSelect, onStage, onUnstage, busy, t } = props;
-      const header = [
-        h('span', { key: 'title' }, group.title),
-        h('span', { key: 'count', className: 'dsh-git-count' }, group.entries.length),
-      ];
-      if (group.action === 'unstage') {
-        header.push(
+    /** The last path segment of a repository root, for the header label. */
+    function repoName(root) {
+      const text = String(root ?? '').replace(/[\\/]+$/, '');
+      const index = Math.max(text.lastIndexOf('/'), text.lastIndexOf('\\'));
+      return index === -1 ? text : text.slice(index + 1);
+    }
+
+    /** Centred placeholder for a state that has no list to show yet. */
+    function PanelState(props) {
+      const { title, detail, retry, t } = props;
+      return h(
+        'div',
+        { className: 'dsh-git-state' },
+        h(GitMark, { size: 26 }),
+        h('p', { className: 'dsh-git-statetitle' }, title),
+        detail === undefined || detail === null || detail === ''
+          ? null
+          : h('p', { className: 'dsh-git-statedetail', title: detail }, detail),
+        retry === undefined || retry === null
+          ? null
+          : h(
+              'button',
+              { type: 'button', className: 'dsh-git-ghost', onClick: retry },
+              t('state.retry'),
+            ),
+      );
+    }
+
+    /** The repository headline: where we are, on what branch, and a refresh. */
+    function PanelHeader(props) {
+      const { status, busy, onRefresh, t } = props;
+      const branch = status.unborn ? t('state.unborn') : status.branch ?? t('state.detached');
+      const meta = [];
+      if (status.upstream !== null && status.upstream !== undefined) {
+        meta.push(
+          h('span', { key: 'up', className: 'dsh-git-meta', title: status.upstream }, status.upstream),
+        );
+      }
+      if (status.ahead > 0) {
+        meta.push(h('span', { key: 'ahead', className: 'dsh-git-meta' }, `↑${String(status.ahead)}`));
+      }
+      if (status.behind > 0) {
+        meta.push(h('span', { key: 'behind', className: 'dsh-git-meta' }, `↓${String(status.behind)}`));
+      }
+      return h(
+        'div',
+        { className: 'dsh-git-head' },
+        h(
+          'div',
+          { className: 'dsh-git-headrow' },
+          h(
+            'span',
+            { className: 'dsh-git-repo', title: `${t('state.workspace')}: ${String(status.root ?? '')}` },
+            repoName(status.root),
+          ),
+          h(
+            'span',
+            { className: 'dsh-git-branch', title: branch },
+            h(GitMark, { size: 12 }),
+            h('span', { className: 'dsh-git-branchtext' }, branch),
+          ),
+          h('span', { className: 'dsh-git-spacer' }),
           h(
             'button',
             {
-              key: 'all',
               type: 'button',
+              className: 'dsh-git-tool',
+              title: busy ? t('state.refreshing') : t('state.refresh'),
+              'aria-label': t('state.refresh'),
               disabled: busy,
-              onClick: () => onUnstage(group.entries.map((entry) => entry.path)),
+              onClick: onRefresh,
             },
-            t('action.unstageAll'),
+            h('span', { className: 'dsh-git-spin', 'data-spin': busy ? 'true' : 'false' }, '⟳'),
           ),
-        );
-      }
-      const nodes = [h('div', { key: 'group', className: 'dsh-git-group' }, header)];
-      for (const entry of group.entries) {
-        const action =
-          group.action === 'stage'
-            ? { label: t('action.stage'), run: () => onStage([entry.path]) }
-            : group.action === 'unstage'
-              ? { label: t('action.unstage'), run: () => onUnstage([entry.path]) }
-              : null;
-        nodes.push(
+        ),
+        meta.length === 0 ? null : h('div', { className: 'dsh-git-metarow' }, meta),
+      );
+    }
+
+    /** The commit message box: draft, hint, shortcut and the primary action. */
+    function CommitBox(props) {
+      const { message, busy, stagedCount, capabilities, onChange, onSubmit, t } = props;
+      const readOnly = capabilities.allowWrite !== true;
+      const noIdentity = capabilities.identity === null || capabilities.identity === undefined;
+      const hint = readOnly
+        ? t('commit.readOnly')
+        : noIdentity
+          ? t('commit.noIdentity')
+          : stagedCount === 0
+            ? t('commit.noneStaged')
+            : t('commit.count', { n: stagedCount });
+      const disabled =
+        busy !== null || readOnly || noIdentity || stagedCount === 0 || message.trim() === '';
+      return h(
+        'div',
+        { className: 'dsh-git-commit' },
+        h('textarea', {
+          value: message,
+          placeholder: t('commit.placeholder'),
+          'aria-label': t('commit.placeholder'),
+          spellCheck: false,
+          disabled: readOnly,
+          onChange: (event) => onChange(event.target.value),
+          onKeyDown: (event) => {
+            if (event.key === 'Enter' && (event.ctrlKey || event.metaKey) && !disabled) {
+              event.preventDefault();
+              onSubmit();
+            }
+          },
+        }),
+        h(
+          'div',
+          { className: 'dsh-git-commitrow' },
+          h('span', { className: 'dsh-git-hint', title: hint }, hint),
+          h('span', { className: 'dsh-git-spacer' }),
+          h('span', { className: 'dsh-git-kbd' }, t('commit.shortcut')),
+          h(
+            'button',
+            { type: 'button', className: 'dsh-git-primary', disabled, onClick: onSubmit },
+            busy === 'commit'
+              ? t('commit.busy')
+              : stagedCount > 0
+                ? t('commit.submitCount', { n: stagedCount })
+                : t('commit.submit'),
+          ),
+        ),
+      );
+    }
+
+    /** The change list: a toolbar, directory-grouped sections, and the open diff. */
+    function ChangesView(props) {
+      const {
+        groups,
+        selection,
+        diff,
+        busy,
+        folded,
+        total,
+        clean,
+        canStageAll,
+        canUnstageAll,
+        onStageAll,
+        onUnstageAll,
+        onToggleDir,
+        onSelect,
+        onStage,
+        onUnstage,
+        onClose,
+        t,
+      } = props;
+      const list = h(
+        'div',
+        { key: 'list', className: selection === null ? 'dsh-git-scroll' : 'dsh-git-scroll split' },
+        groups.length === 0 || clean === true
+          ? h(
+              'div',
+              { className: 'dsh-git-state' },
+              h('p', { className: 'dsh-git-statetitle' }, t('empty.changesTitle')),
+              h('p', { className: 'dsh-git-statedetail' }, t('state.clean')),
+            )
+          : h(
+              'div',
+              { className: 'dsh-git-toolbar' },
+              h('span', { className: 'dsh-git-toolbartext' }, t('changes.total', { n: total })),
+              h('span', { className: 'dsh-git-spacer' }),
+              canUnstageAll
+                ? h(
+                    'button',
+                    { key: 'unstage', type: 'button', className: 'dsh-git-ghost', disabled: busy !== null, onClick: onUnstageAll },
+                    t('action.unstageAll'),
+                  )
+                : null,
+              canStageAll
+                ? h(
+                    'button',
+                    { key: 'stage', type: 'button', className: 'dsh-git-ghost', disabled: busy !== null, onClick: onStageAll },
+                    t('action.stageAll'),
+                  )
+                : null,
+            ),
+        groups.map((group) =>
+          h(ChangeGroup, {
+            key: group.id,
+            group,
+            selectedKey: selection === null ? null : selection.key,
+            busy: busy !== null,
+            folded,
+            onToggleDir,
+            onSelect,
+            onStage,
+            onUnstage,
+            t,
+          }),
+        ),
+      );
+      if (selection === null) return list;
+      const pane = h(
+        'div',
+        { key: 'diff', className: 'dsh-git-diff' },
+        h(
+          'div',
+          { className: 'dsh-git-diffhead' },
+          h('span', { className: markClass(selection.letter) }, selection.letter),
+          h('span', { className: 'dsh-git-path', title: selection.path }, selection.path),
+          h('span', { className: 'dsh-git-spacer' }),
+          h(
+            'button',
+            {
+              type: 'button',
+              className: 'dsh-git-tool',
+              title: t('action.close'),
+              'aria-label': t('action.close'),
+              onClick: onClose,
+            },
+            '✕',
+          ),
+        ),
+        h(
+          'div',
+          { className: 'dsh-git-code' },
+          diff.phase === 'loading'
+            ? h('p', { className: 'dsh-git-note' }, t('state.loading'))
+            : diff.phase === 'error'
+              ? h('p', { className: 'dsh-git-note error' }, String(diff.error.message))
+              : diff.phase === 'ready' && diff.diff !== undefined && diff.diff !== null
+                ? h(DiffCode, {
+                    text: diff.diff.text,
+                    binary: diff.diff.binary,
+                    truncated: diff.diff.truncated,
+                    empty: t('diff.empty'),
+                    resetKey: selection.key,
+                    t,
+                  })
+                : null,
+        ),
+      );
+      return h(React.Fragment, null, list, pane);
+    }
+
+    /** Commit history: the DAG list, or the detail of one opened commit. */
+    function HistoryView(props) {
+      const { history, detail, allRefs, onToggleAll, onOpen, onBack, t } = props;
+      if (detail.phase !== 'idle') {
+        const commit = detail.commit;
+        const files = commit === null ? [] : parseFilePatch(commit.patch);
+        const subject = commit === null ? '' : String(commit.message).split('\n')[0];
+        return h(
+          'div',
+          { className: 'dsh-git-body' },
           h(
             'div',
-            {
-              key: entry.key,
-              className: 'dsh-git-rowwrap',
-              'data-active': selectedKey === entry.key ? 'true' : 'false',
-            },
+            { className: 'dsh-git-diffhead' },
             h(
               'button',
               {
                 type: 'button',
-                className: 'dsh-git-rowmain',
-                onClick: () => onSelect(entry),
+                className: 'dsh-git-tool',
+                title: t('history.back'),
+                'aria-label': t('history.back'),
+                onClick: onBack,
               },
-              h('span', { className: markClass(entry.letter) }, entry.letter),
-              h('span', { className: 'dsh-git-name' }, entry.name),
-              h('span', { className: 'dsh-git-dir' }, entry.dir),
+              '←',
             ),
-            action === null
-              ? null
-              : h(
-                  'button',
-                  {
-                    type: 'button',
-                    className: 'dsh-git-act',
-                    title: action.label,
-                    'aria-label': action.label,
-                    disabled: busy,
-                    onClick: action.run,
-                  },
-                  group.action === 'stage' ? '⊕' : '⊖',
-                ),
+            h(
+              'span',
+              { className: 'dsh-git-path' },
+              commit === null
+                ? ''
+                : `${commit.hash.slice(0, 10)}${subject === '' ? '' : ` · ${subject}`}`,
+            ),
           ),
+          detail.phase === 'loading'
+            ? h(
+                'div',
+                { className: 'dsh-git-scroll' },
+                h('p', { className: 'dsh-git-note' }, t('state.loading')),
+              )
+            : detail.phase === 'error'
+              ? h(
+                  'div',
+                  { className: 'dsh-git-scroll' },
+                  h('p', { className: 'dsh-git-note error' }, String(detail.error.message)),
+                )
+              : h(
+                  React.Fragment,
+                  null,
+                  h(
+                    'div',
+                    { className: 'dsh-git-scroll split' },
+                    h(
+                      'div',
+                      { className: 'dsh-git-metablock' },
+                      h('div', { className: 'dsh-git-hint' }, `${commit.author} · ${commit.date}`),
+                      h('div', { className: 'dsh-git-message' }, commit.message),
+                    ),
+                    h(
+                      'div',
+                      { className: 'dsh-git-sectionhead' },
+                      h('span', { className: 'dsh-git-sectiontitle' }, t('history.files')),
+                      h('span', { className: 'dsh-git-count' }, files.length),
+                    ),
+                    ...files.map((section, index) =>
+                      h(
+                        'div',
+                        { key: `f${String(index)}`, className: 'dsh-git-row' },
+                        h('span', { className: markClass(patchStatus(section)) }, patchStatus(section)),
+                        h(
+                          'span',
+                          { className: 'dsh-git-filename', title: section.path ?? '' },
+                          section.path === null ? '?' : splitPath(section.path).name,
+                        ),
+                        h(
+                          'span',
+                          { className: 'dsh-git-dirname' },
+                          section.path === null ? '' : splitPath(section.path).dir,
+                        ),
+                        h(
+                          'span',
+                          { className: 'dsh-git-hint' },
+                          t('diff.stat', { adds: section.adds, dels: section.dels }),
+                        ),
+                      ),
+                    ),
+                  ),
+                  h(
+                    'div',
+                    { className: 'dsh-git-diff' },
+                    h(
+                      'div',
+                      { className: 'dsh-git-code' },
+                      h(DiffCode, {
+                        text: commit.patch,
+                        binary: false,
+                        truncated: commit.patchTruncated,
+                        empty: t('diff.empty'),
+                        resetKey: commit.hash,
+                        t,
+                      }),
+                    ),
+                  ),
+                ),
         );
+      }
+      const commits = history.commits ?? [];
+      const layout = layoutGraph(commits);
+      return h(
+        'div',
+        { className: 'dsh-git-body' },
+        h(
+          'div',
+          { className: 'dsh-git-toolbar' },
+          h('span', { className: 'dsh-git-toolbartext' }, t('history.count', { n: commits.length })),
+          h('span', { className: 'dsh-git-spacer' }),
+          h(
+            'button',
+            {
+              type: 'button',
+              className: 'dsh-git-ghost',
+              'data-on': allRefs ? 'true' : 'false',
+              onClick: onToggleAll,
+            },
+            t('history.all'),
+          ),
+        ),
+        h(
+          'div',
+          { className: 'dsh-git-scroll' },
+          history.phase === 'loading'
+            ? h('p', { className: 'dsh-git-note' }, t('history.loading'))
+            : history.phase === 'error'
+              ? h('p', { className: 'dsh-git-note error' }, String(history.error.message))
+              : commits.length === 0
+                ? h(
+                    'div',
+                    { className: 'dsh-git-state' },
+                    h('p', { className: 'dsh-git-statetitle' }, t('history.empty')),
+                  )
+                : layout.rows.map((row) =>
+                    h(
+                      'button',
+                      {
+                        key: row.commit.hash,
+                        type: 'button',
+                        className: 'dsh-git-commit-row',
+                        onClick: () => onOpen(row.commit.hash),
+                      },
+                      h(GraphCell, { row, widest: layout.widest, height: 24 }),
+                      h('span', { className: 'dsh-git-hash' }, row.commit.hash.slice(0, 7)),
+                      h('span', { className: 'dsh-git-subject', title: row.commit.subject }, row.commit.subject),
+                      ...(row.commit.refs ?? []).slice(0, 2).map((ref, index) =>
+                        h(
+                          'span',
+                          {
+                            key: `r${String(index)}`,
+                            className: /HEAD/.test(ref) ? 'dsh-git-ref head' : 'dsh-git-ref',
+                          },
+                          ref.replace('HEAD -> ', ''),
+                        ),
+                      ),
+                    ),
+                  ),
+        ),
+      );
+    }
+
+    /** Local branches, remote-tracking branches and tags. */
+    function BranchesView(props) {
+      const { branches, t } = props;
+      const refs = branches.refs ?? [];
+      const groups = [
+        { id: 'local', title: t('branches.local'), entries: refs.filter((ref) => ref.kind === 'local') },
+        { id: 'remote', title: t('branches.remote'), entries: refs.filter((ref) => ref.kind === 'remote') },
+        { id: 'tag', title: t('branches.tag'), entries: refs.filter((ref) => ref.kind === 'tag') },
+      ].filter((group) => group.entries.length > 0);
+      return h(
+        'div',
+        { className: 'dsh-git-body' },
+        h(
+          'div',
+          { className: 'dsh-git-toolbar' },
+          h('span', { className: 'dsh-git-toolbartext' }, t('branches.count', { n: refs.length })),
+        ),
+        h(
+          'div',
+          { className: 'dsh-git-scroll' },
+          branches.phase === 'loading'
+            ? h('p', { className: 'dsh-git-note' }, t('state.loading'))
+            : branches.phase === 'error'
+              ? h('p', { className: 'dsh-git-note error' }, String(branches.error.message))
+              : groups.length === 0
+                ? h(
+                    'div',
+                    { className: 'dsh-git-state' },
+                    h('p', { className: 'dsh-git-statetitle' }, t('branches.empty')),
+                  )
+                : groups.map((group) =>
+                    h(
+                      React.Fragment,
+                      { key: group.id },
+                      h(
+                        'div',
+                        { className: 'dsh-git-sectionhead' },
+                        h('span', { className: 'dsh-git-sectiontitle' }, group.title),
+                        h('span', { className: 'dsh-git-count' }, group.entries.length),
+                      ),
+                      ...group.entries.map((ref) =>
+                        h(
+                          'div',
+                          { key: `${group.id}:${ref.name}`, className: 'dsh-git-row' },
+                          h('span', { className: 'dsh-git-filename', title: ref.name }, ref.name),
+                          ref.head
+                            ? h('span', { className: 'dsh-git-ref head' }, t('branches.current'))
+                            : null,
+                          h('span', { className: 'dsh-git-spacer' }),
+                          ref.track === null || ref.track === undefined
+                            ? null
+                            : h('span', { className: 'dsh-git-hint' }, ref.track),
+                          ref.upstream === null || ref.upstream === undefined
+                            ? null
+                            : h('span', { className: 'dsh-git-dirname' }, `→ ${ref.upstream}`),
+                        ),
+                      ),
+                    ),
+                  ),
+        ),
+      );
+    }
+
+    /** Split one change group into per-directory runs, keeping the status order. */
+    function groupByDir(entries) {
+      const dirs = new Map();
+      for (const entry of entries) {
+        if (!dirs.has(entry.dir)) dirs.set(entry.dir, []);
+        dirs.get(entry.dir).push(entry);
+      }
+      return [...dirs.entries()].map(([dir, items]) => ({ dir, entries: items }));
+    }
+
+    /** One section of the change list: a title, its batch action, and its files. */
+    function ChangeGroup(props) {
+      const { group, selectedKey, busy, folded, onToggleDir, onSelect, onStage, onUnstage, t } = props;
+      const runs = useMemo(() => groupByDir(group.entries), [group.entries]);
+      const paths = group.entries.map((entry) => entry.path);
+      const batch =
+        group.action === 'stage'
+          ? { label: t('action.stageAll'), run: () => onStage(paths) }
+          : group.action === 'unstage'
+            ? { label: t('action.unstageAll'), run: () => onUnstage(paths) }
+            : null;
+      // A single root run needs no folder row: there is nothing to distinguish.
+      const showDirs = runs.length > 1 || (runs.length === 1 && runs[0].dir !== '');
+      const nodes = [
+        h(
+          'div',
+          { key: 'head', className: 'dsh-git-sectionhead' },
+          h('span', { className: 'dsh-git-sectiontitle' }, group.title),
+          h('span', { className: 'dsh-git-count' }, group.entries.length),
+          batch === null
+            ? null
+            : h(
+                'button',
+                { key: 'batch', type: 'button', className: 'dsh-git-batch', disabled: busy, onClick: batch.run },
+                batch.label,
+              ),
+        ),
+      ];
+      for (const run of runs) {
+        const key = `${group.id}:${run.dir}`;
+        const isFolded = showDirs && folded.has(key);
+        if (showDirs) {
+          nodes.push(
+            h(
+              'button',
+              {
+                key: `d${key}`,
+                type: 'button',
+                className: 'dsh-git-dirrow',
+                'aria-expanded': isFolded ? 'false' : 'true',
+                onClick: () => onToggleDir(key),
+              },
+              h('span', { className: 'dsh-git-caret' }, isFolded ? '▸' : '▾'),
+              h('span', { className: 'dsh-git-dirname', title: run.dir }, run.dir === '' ? t('dir.root') : run.dir),
+              h('span', { className: 'dsh-git-dircount' }, run.entries.length),
+            ),
+          );
+        }
+        if (isFolded) continue;
+        for (const entry of run.entries) {
+          const action =
+            group.action === 'stage'
+              ? { label: t('action.stage'), run: () => onStage([entry.path]) }
+              : group.action === 'unstage'
+                ? { label: t('action.unstage'), run: () => onUnstage([entry.path]) }
+                : null;
+          nodes.push(
+            h(
+              'div',
+              {
+                key: entry.key,
+                className: 'dsh-git-file',
+                'data-active': selectedKey === entry.key ? 'true' : 'false',
+              },
+              h(
+                'button',
+                {
+                  type: 'button',
+                  className: 'dsh-git-filemain',
+                  title: entry.path,
+                  onClick: () => onSelect(entry),
+                },
+                h('span', { className: markClass(entry.letter) }, entry.letter),
+                h('span', { className: 'dsh-git-filename' }, entry.name),
+              ),
+              action === null
+                ? null
+                : h(
+                    'button',
+                    {
+                      type: 'button',
+                      className: 'dsh-git-fileact',
+                      title: action.label,
+                      'aria-label': action.label,
+                      disabled: busy,
+                      onClick: action.run,
+                    },
+                    action.label,
+                  ),
+            ),
+          );
+        }
       }
       return h(React.Fragment, null, nodes);
     }
@@ -626,6 +1388,8 @@ window.__ModuleLoader__.load({
       const [message, setMessage] = useState('');
       const [busy, setBusy] = useState(null);
       const [notice, setNotice] = useState(null);
+      /** Directory rows the user folded shut, keyed `group:dir`. */
+      const [folded, setFolded] = useState(() => new Set());
 
       const root = state.status !== undefined && state.status.repo === true ? state.status.root : cwd;
       /** Primitive readiness flag: polling publishes a new status object every tick. */
@@ -666,6 +1430,13 @@ window.__ModuleLoader__.load({
         }, REFRESH_MS);
         return () => clearInterval(timer);
       }, [cwd, refresh, visible]);
+
+      useEffect(() => {
+        if (notice === null) return undefined;
+        // Feedback should not pile up: a notice clears itself once it is read.
+        const timer = setTimeout(() => setNotice(null), notice.kind === 'error' ? 8000 : 4000);
+        return () => clearTimeout(timer);
+      }, [notice]);
 
       /** Load the diff for the selected entry. */
       useEffect(() => {
@@ -737,12 +1508,13 @@ window.__ModuleLoader__.load({
 
       /** Run one write operation, then reload the state it invalidated. */
       const write = useCallback(
-        async (label, operation) => {
+        async (label, operation, done) => {
           setBusy(label);
           setNotice(null);
           try {
             await operation();
             await refresh({ announce: false });
+            if (done !== undefined) setNotice({ kind: 'ok', text: done });
           } catch (error) {
             setNotice({ kind: 'error', text: String((error && error.message) || error) });
           } finally {
@@ -752,31 +1524,53 @@ window.__ModuleLoader__.load({
         [refresh],
       );
 
+      /** Follow a path that changes section, so an open diff stays truthful. */
+      const follow = useCallback((paths, side, prefix) => {
+        setSelection((current) =>
+          current !== null && paths.includes(current.path)
+            ? { ...current, side, key: `${prefix}:${current.path}` }
+            : current,
+        );
+      }, []);
+
       const stagePaths = useCallback(
-        (paths) =>
-          write('stage', async () => {
-            await api.stage(root, paths);
-            // The entry moved sections: follow it so the open diff stays truthful.
-            setSelection((current) =>
-              current !== null && paths.includes(current.path)
-                ? { ...current, side: 'index', key: `staged:${current.path}` }
-                : current,
-            );
-          }),
-        [root, write],
+        (paths) => {
+          if (paths.length === 0) return Promise.resolve();
+          return write(
+            'stage',
+            async () => {
+              await api.stage(root, paths);
+              follow(paths, 'index', 'staged');
+            },
+            t('notice.staged', { n: paths.length }),
+          );
+        },
+        [follow, root, t, write],
       );
       const unstagePaths = useCallback(
-        (paths) =>
-          write('unstage', async () => {
-            await api.unstage(root, paths);
-            setSelection((current) =>
-              current !== null && paths.includes(current.path)
-                ? { ...current, side: 'worktree', key: `unstaged:${current.path}` }
-                : current,
-            );
-          }),
-        [root, write],
+        (paths) => {
+          if (paths.length === 0) return Promise.resolve();
+          return write(
+            'unstage',
+            async () => {
+              await api.unstage(root, paths);
+              follow(paths, 'worktree', 'unstaged');
+            },
+            t('notice.unstaged', { n: paths.length }),
+          );
+        },
+        [follow, root, t, write],
       );
+
+      /** Fold or unfold one directory row of the change list. */
+      const toggleDir = useCallback((key) => {
+        setFolded((current) => {
+          const next = new Set(current);
+          if (next.has(key)) next.delete(key);
+          else next.add(key);
+          return next;
+        });
+      }, []);
       const submitCommit = useCallback(async () => {
         setBusy('commit');
         setNotice(null);
@@ -833,22 +1627,22 @@ window.__ModuleLoader__.load({
       const style = h('style', { key: 'style' }, CSS);
 
       if (cwd === undefined || cwd === null || cwd === '') {
-        return h('div', { className: 'dsh-git-root' }, style, h('p', { className: 'dsh-git-note' }, t('state.noWorkspace')));
+        return h('div', { className: 'dsh-git-root' }, style, h(PanelState, { title: t('state.noWorkspace'), t }));
       }
       if (state.phase === 'loading') {
-        return h('div', { className: 'dsh-git-root' }, style, h('p', { className: 'dsh-git-note' }, t('state.loading')));
+        return h('div', { className: 'dsh-git-root' }, style, h(PanelState, { title: t('state.loading'), t }));
       }
       if (state.phase === 'error') {
         return h(
           'div',
           { className: 'dsh-git-root' },
           style,
-          h('p', { className: 'dsh-git-note error' }, String(state.error.message)),
-          h(
-            'div',
-            { className: 'dsh-git-note' },
-            h('button', { type: 'button', className: 'dsh-git-tool', onClick: () => refresh() }, t('state.retry')),
-          ),
+          h(PanelState, {
+            title: t('common.error'),
+            detail: String(state.error.message),
+            retry: () => refresh(),
+            t,
+          }),
         );
       }
       if (state.status === undefined || state.status.repo !== true) {
@@ -856,47 +1650,28 @@ window.__ModuleLoader__.load({
           'div',
           { className: 'dsh-git-root' },
           style,
-          h('p', { className: 'dsh-git-note' }, t('state.notRepo')),
-          h('p', { className: 'dsh-git-note' }, cwd),
+          h(PanelState, { title: t('state.notRepoTitle'), detail: cwd, t }),
         );
       }
 
       const status = state.status;
-      const header = h(
-        'div',
-        { key: 'header', className: 'dsh-git-header' },
-        h(
-          'span',
-          { className: 'dsh-git-chip', title: status.upstream ?? undefined },
-          h('span', null, status.unborn ? t('state.unborn') : status.branch ?? t('state.detached')),
-        ),
-        status.ahead > 0 ? h('span', { className: 'dsh-git-chip' }, `↑${String(status.ahead)}`) : null,
-        status.behind > 0 ? h('span', { className: 'dsh-git-chip' }, `↓${String(status.behind)}`) : null,
-        h('span', { className: 'dsh-git-spacer' }),
-        h(
-          'button',
-          {
-            type: 'button',
-            className: 'dsh-git-tool',
-            title: t('state.refresh'),
-            'aria-label': t('state.refresh'),
-            disabled: busy !== null,
-            onClick: () => {
-              refresh({ announce: false });
-              if (view === 'history') loadHistory();
-            },
-          },
-          '⟳',
-        ),
-      );
+      const header = h(PanelHeader, {
+        status,
+        busy: busy !== null,
+        onRefresh: () => {
+          refresh({ announce: false });
+          if (view === 'history') loadHistory();
+        },
+        t,
+      });
 
       const tabs = h(
         'div',
         { key: 'tabs', className: 'dsh-git-tabs', role: 'tablist' },
         ...[
-          { id: 'changes', label: t('tab.changes') },
-          { id: 'history', label: t('tab.history') },
-          { id: 'branches', label: t('tab.branches') },
+          { id: 'changes', label: t('tab.changes'), count: status.changes.total },
+          { id: 'history', label: t('tab.history'), count: (history.commits ?? []).length },
+          { id: 'branches', label: t('tab.branches'), count: (branches.refs ?? []).length },
         ].map((entry) =>
           h(
             'button',
@@ -908,7 +1683,8 @@ window.__ModuleLoader__.load({
               'aria-selected': view === entry.id ? 'true' : 'false',
               onClick: () => setView(entry.id),
             },
-            entry.label,
+            h('span', { className: 'dsh-git-tablabel' }, entry.label),
+            entry.count > 0 ? h('span', { className: 'dsh-git-tabcount' }, entry.count) : null,
           ),
         ),
       );
@@ -925,258 +1701,61 @@ window.__ModuleLoader__.load({
               notice.text,
             );
 
+      const stageablePaths = [];
+      const unstageablePaths = [];
+      for (const group of groups) {
+        for (const entry of group.entries) {
+          if (group.action === 'stage') stageablePaths.push(entry.path);
+          else if (group.action === 'unstage') unstageablePaths.push(entry.path);
+        }
+      }
+
       let body = null;
       if (view === 'changes') {
-        const list = h(
-          'div',
-          { key: 'list', className: selection === null ? 'dsh-git-scroll' : 'dsh-git-scroll split' },
-          clean ? h('p', { className: 'dsh-git-note' }, t('state.clean')) : null,
-          groups.map((group) =>
-            h(ChangeGroup, {
-              key: group.id,
-              group,
-              selectedKey: selection === null ? null : selection.key,
-              busy: busy !== null,
-              onSelect: (entry) => setSelection(entry),
-              onStage: stagePaths,
-              onUnstage: unstagePaths,
-              t,
-            }),
-          ),
-        );
-        const diffNode =
-          selection === null
-            ? null
-            : h(
-                'div',
-                { key: 'diff', className: 'dsh-git-diff' },
-                h(
-                  'div',
-                  { className: 'dsh-git-diffhead' },
-                  h('span', { className: 'dsh-git-path', title: selection.path }, selection.path),
-                  h(
-                    'button',
-                    {
-                      type: 'button',
-                      className: 'dsh-git-tool',
-                      title: t('action.close'),
-                      'aria-label': t('action.close'),
-                      onClick: () => setSelection(null),
-                    },
-                    '✕',
-                  ),
-                ),
-                h(
-                  'div',
-                  { className: 'dsh-git-code' },
-                  diff.phase === 'loading'
-                    ? h('p', { className: 'dsh-git-note' }, t('state.loading'))
-                    : diff.phase === 'error'
-                      ? h('p', { className: 'dsh-git-note error' }, String(diff.error.message))
-                      : h(DiffCode, {
-                          text: diff.diff.text,
-                          binary: diff.diff.binary,
-                          truncated: diff.diff.truncated,
-                          empty: t('diff.empty'),
-                          t,
-                        }),
-                ),
-              );
-        const commitBox = h(
-          'div',
-          { key: 'commit', className: 'dsh-git-commit' },
-          h('textarea', {
-            value: message,
-            placeholder: t('commit.placeholder'),
-            'aria-label': t('commit.placeholder'),
-            onChange: (event) => setMessage(event.target.value),
-          }),
-          h(
-            'div',
-            { className: 'dsh-git-commitrow' },
-            h(
-              'span',
-              { className: 'dsh-git-hint' },
-              capabilities.allowWrite !== true
-                ? t('commit.readOnly')
-                : capabilities.identity === null
-                  ? t('commit.noIdentity')
-                  : t('commit.count', { n: stagedCount }),
-            ),
-            h(
-              'button',
-              {
-                type: 'button',
-                className: 'dsh-git-primary',
-                disabled:
-                  busy !== null ||
-                  capabilities.allowWrite !== true ||
-                  capabilities.identity === null ||
-                  stagedCount === 0 ||
-                  message.trim() === '',
-                onClick: submitCommit,
-              },
-              busy === 'commit' ? t('commit.busy') : t('commit.submit'),
-            ),
-          ),
-        );
-        body = h('div', { key: 'body', className: 'dsh-git-body' }, list, diffNode, commitBox);
-      } else if (view === 'history') {
-        if (detail.phase !== 'idle') {
-          body = h(
-            'div',
-            { key: 'body', className: 'dsh-git-body' },
-            h(
-              'div',
-              { className: 'dsh-git-diffhead' },
-              h(
-                'button',
-                {
-                  type: 'button',
-                  className: 'dsh-git-tool',
-                  title: t('history.back'),
-                  'aria-label': t('history.back'),
-                  onClick: () => setDetail({ phase: 'idle', commit: null }),
-                },
-                '←',
-              ),
-              h('span', { className: 'dsh-git-path' }, detail.commit === null ? '' : detail.commit.hash.slice(0, 10)),
-            ),
-            detail.phase === 'loading'
-              ? h('p', { className: 'dsh-git-note' }, t('state.loading'))
-              : detail.phase === 'error'
-                ? h('p', { className: 'dsh-git-note error' }, String(detail.error.message))
-                : h(
-                    'div',
-                    { className: 'dsh-git-scroll' },
-                    h('div', { className: 'dsh-git-group' }, `${detail.commit.author} · ${detail.commit.date}`),
-                    h('div', { className: 'dsh-git-l ctx' }, detail.commit.message),
-                    h('div', { className: 'dsh-git-group' }, t('history.files')),
-                    ...parsePatch(detail.commit.patch).map((section, index) =>
-                      h(
-                        'div',
-                        { key: `f${String(index)}`, className: 'dsh-git-row' },
-                        h('span', { className: markClass(patchStatus(section)) }, patchStatus(section)),
-                        h('span', { className: 'dsh-git-name' }, section.path === null ? '(?)' : splitPath(section.path).name),
-                        h('span', { className: 'dsh-git-dir' }, section.path === null ? '' : splitPath(section.path).dir),
-                        h('span', { className: 'dsh-git-hint' }, `+${String(section.adds)} −${String(section.dels)}`),
-                      ),
-                    ),
-                  ),
-            h(
-              'div',
-              { className: 'dsh-git-diff' },
-              h(
-                'div',
-                { className: 'dsh-git-code' },
-                detail.phase === 'ready'
-                  ? h(DiffCode, {
-                      text: detail.commit.patch,
-                      binary: false,
-                      truncated: detail.commit.patchTruncated,
-                      empty: t('diff.empty'),
-                      t,
-                    })
-                  : null,
-              ),
-            ),
-          );
-        } else {
-          const layout = layoutGraph(history.commits ?? []);
-          body = h(
-            'div',
-            { key: 'body', className: 'dsh-git-body' },
-            h(
-              'div',
-              { className: 'dsh-git-group' },
-              h('span', null, t('tab.history')),
-              h(
-                'button',
-                {
-                  type: 'button',
-                  onClick: () => setAllRefs((value) => !value),
-                },
-                `${t('history.all')}${allRefs ? ' ✓' : ''}`,
-              ),
-            ),
-            h(
-              'div',
-              { className: 'dsh-git-scroll' },
-              history.phase === 'loading'
-                ? h('p', { className: 'dsh-git-note' }, t('history.loading'))
-                : history.phase === 'error'
-                  ? h('p', { className: 'dsh-git-note error' }, String(history.error.message))
-                  : (history.commits ?? []).length === 0
-                    ? h('p', { className: 'dsh-git-note' }, t('history.empty'))
-                    : layout.rows.map((row) =>
-                        h(
-                          'button',
-                          {
-                            key: row.commit.hash,
-                            type: 'button',
-                            className: 'dsh-git-commit-row',
-                            onClick: () => openCommit(row.commit.hash),
-                          },
-                          h(GraphCell, { row, widest: layout.widest, height: 22 }),
-                          h('span', { className: 'dsh-git-hash' }, row.commit.hash.slice(0, 7)),
-                          h('span', { className: 'dsh-git-subject', title: row.commit.subject }, row.commit.subject),
-                          ...(row.commit.refs ?? []).slice(0, 2).map((ref, index) =>
-                            h(
-                              'span',
-                              {
-                                key: `r${String(index)}`,
-                                className: /HEAD/.test(ref) ? 'dsh-git-ref head' : 'dsh-git-ref',
-                              },
-                              ref.replace('HEAD -> ', ''),
-                            ),
-                          ),
-                        ),
-                      ),
-            ),
-          );
-        }
-      } else {
-        const groupsForRefs = [
-          { id: 'local', title: t('branches.local'), entries: (branches.refs ?? []).filter((ref) => ref.kind === 'local') },
-          { id: 'remote', title: t('branches.remote'), entries: (branches.refs ?? []).filter((ref) => ref.kind === 'remote') },
-          { id: 'tag', title: t('branches.tag'), entries: (branches.refs ?? []).filter((ref) => ref.kind === 'tag') },
-        ].filter((group) => group.entries.length > 0);
         body = h(
           'div',
           { key: 'body', className: 'dsh-git-body' },
-          h(
-            'div',
-            { className: 'dsh-git-scroll' },
-            branches.phase === 'loading'
-              ? h('p', { className: 'dsh-git-note' }, t('state.loading'))
-              : branches.phase === 'error'
-                ? h('p', { className: 'dsh-git-note error' }, String(branches.error.message))
-                : groupsForRefs.length === 0
-                  ? h('p', { className: 'dsh-git-note' }, t('branches.empty'))
-                  : groupsForRefs.map((group) =>
-                      h(
-                        React.Fragment,
-                        { key: group.id },
-                        h(
-                          'div',
-                          { className: 'dsh-git-group' },
-                          h('span', null, group.title),
-                          h('span', { className: 'dsh-git-count' }, group.entries.length),
-                        ),
-                        ...group.entries.map((ref) =>
-                          h(
-                            'div',
-                            { key: `${group.id}:${ref.name}`, className: 'dsh-git-row' },
-                            h('span', { className: 'dsh-git-name', title: ref.name }, ref.name),
-                            ref.head ? h('span', { className: 'dsh-git-ref head' }, t('branches.current')) : null,
-                            h('span', { className: 'dsh-git-dir' }, ref.track === null ? '' : ref.track),
-                            ref.upstream === null ? null : h('span', { className: 'dsh-git-hint' }, `→ ${ref.upstream}`),
-                          ),
-                        ),
-                      ),
-                    ),
-          ),
+          h(ChangesView, {
+            groups,
+            selection,
+            diff,
+            busy,
+            folded,
+            total: status.changes.total,
+            clean,
+            canStageAll: stageablePaths.length > 0,
+            canUnstageAll: unstageablePaths.length > 0,
+            onStageAll: () => stagePaths(stageablePaths),
+            onUnstageAll: () => unstagePaths(unstageablePaths),
+            onToggleDir: toggleDir,
+            onSelect: (entry) => setSelection(entry),
+            onStage: stagePaths,
+            onUnstage: unstagePaths,
+            onClose: () => setSelection(null),
+            t,
+          }),
+          h(CommitBox, {
+            message,
+            busy,
+            stagedCount,
+            capabilities,
+            onChange: setMessage,
+            onSubmit: submitCommit,
+            t,
+          }),
         );
+      } else if (view === 'history') {
+        body = h(HistoryView, {
+          history,
+          detail,
+          allRefs,
+          onToggleAll: () => setAllRefs((value) => !value),
+          onOpen: openCommit,
+          onBack: () => setDetail({ phase: 'idle', commit: null }),
+          t,
+        });
+      } else {
+        body = h(BranchesView, { branches, t });
       }
 
       return h('div', { className: 'dsh-git-root' }, style, header, tabs, noticeNode, body);
@@ -1185,59 +1764,110 @@ window.__ModuleLoader__.load({
     /** Panel styles: theme tokens only, prefixed classes, no global selectors. */
     const CSS = [
       '.dsh-git-root{height:100%;min-height:0;flex:auto;display:flex;flex-direction:column;color:var(--dsw-alias-label-primary);font-size:var(--dsh-content-font-size-secondary,13px);line-height:1.5}',
-      '.dsh-git-header{flex:none;display:flex;align-items:center;gap:6px;height:38px;padding:0 6px 0 12px;border-bottom:.5px solid var(--dsw-alias-border-l1)}',
-      '.dsh-git-chip{display:inline-flex;align-items:center;min-width:0;max-width:100%;padding:1px 8px;border-radius:999px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
       '.dsh-git-spacer{flex:1 1 auto;min-width:0}',
-      '.dsh-git-tool{width:26px;height:26px;flex:none;display:inline-flex;align-items:center;justify-content:center;padding:0;border:0;background:0 0;border-radius:4px;color:var(--dsw-alias-label-secondary);cursor:pointer;font:inherit}',
+      '.dsh-git-head{flex:none;display:flex;flex-direction:column;gap:2px;padding:8px 6px 7px 12px;border-bottom:.5px solid var(--dsw-alias-border-l1)}',
+      '.dsh-git-headrow{display:flex;align-items:center;gap:6px;min-width:0}',
+      '.dsh-git-repo{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;font-size:13px}',
+      '.dsh-git-branch{flex:0 1 auto;min-width:0;display:inline-flex;align-items:center;gap:4px;padding:1px 7px;border-radius:999px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);font-size:11px}',
+      '.dsh-git-branchtext{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.dsh-git-metarow{display:flex;align-items:center;gap:8px;min-width:0;color:var(--dsw-alias-label-secondary);font-size:11px}',
+      '.dsh-git-meta{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.dsh-git-tool{width:26px;height:26px;flex:none;display:inline-flex;align-items:center;justify-content:center;padding:0;border:0;background:0 0;border-radius:6px;color:var(--dsw-alias-label-secondary);cursor:pointer;font:inherit}',
       '.dsh-git-tool:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2));color:var(--dsw-alias-label-primary)}',
       '.dsh-git-tool:disabled{opacity:.45;cursor:default}',
       '.dsh-git-tool svg{width:15px;height:15px}',
-      '.dsh-git-tabs{flex:none;display:flex;gap:2px;padding:4px 6px;border-bottom:.5px solid var(--dsw-alias-border-l1)}',
-      '.dsh-git-tab{flex:1 1 auto;min-width:0;padding:4px 6px;border:0;background:0 0;border-radius:4px;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
-      '.dsh-git-tab[aria-selected="true"]{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary)}',
+      '.dsh-git-spin{display:inline-block;line-height:1}',
+      '.dsh-git-spin[data-spin="true"]{animation:dsh-git-spin .9s linear infinite}',
+      '@keyframes dsh-git-spin{to{transform:rotate(360deg)}}',
+      '@media (prefers-reduced-motion:reduce){.dsh-git-spin[data-spin="true"]{animation:none}}',
+      '.dsh-git-tabs{flex:none;display:flex;gap:2px;padding:3px 6px;border-bottom:.5px solid var(--dsw-alias-border-l1)}',
+      '.dsh-git-tab{flex:1 1 auto;min-width:0;display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:5px 4px;border:0;background:0 0;border-radius:6px;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;cursor:pointer}',
+      '.dsh-git-tab:hover{background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2));color:var(--dsw-alias-label-primary)}',
+      '.dsh-git-tab[aria-selected="true"]{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);font-weight:500}',
+      '.dsh-git-tablabel{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.dsh-git-tabcount{flex:none;font-size:10px;opacity:.75}',
       '.dsh-git-body{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;overflow:hidden}',
       '.dsh-git-scroll{flex:1 1 auto;min-height:0;overflow:auto;scrollbar-gutter:stable}',
-      '.dsh-git-scroll.split{flex:0 0 auto;max-height:45%}',
-      '.dsh-git-note{margin:0;padding:10px 12px;color:var(--dsw-alias-label-secondary);font-size:12px;word-break:break-all}',
-      '.dsh-git-note.error{color:var(--dsw-alias-state-error-primary)}',
-      '.dsh-git-banner{margin:6px 8px;padding:6px 8px;border-radius:4px;background:var(--dsw-alias-bg-layer-2);font-size:12px;color:var(--dsw-alias-label-secondary)}',
-      '.dsh-git-banner.error{color:var(--dsw-alias-state-error-primary)}',
-      '.dsh-git-group{display:flex;align-items:center;gap:6px;padding:6px 10px 2px;color:var(--dsw-alias-label-secondary);font-size:11px}',
-      '.dsh-git-count{margin-left:2px;color:var(--dsw-alias-state-idle-primary)}',
-      '.dsh-git-group button{margin-left:auto;border:0;background:0 0;color:var(--dsw-alias-label-secondary);font:inherit;font-size:11px;cursor:pointer;padding:0}',
-      '.dsh-git-group button:hover{color:var(--dsw-alias-label-primary)}',
-      '.dsh-git-row{display:flex;align-items:center;gap:6px;width:100%;min-width:0;box-sizing:border-box;padding:3px 8px 3px 10px;color:inherit;font:inherit;text-align:left}',
-      '.dsh-git-rowwrap{display:flex;align-items:center;gap:6px;width:100%;min-width:0;box-sizing:border-box;padding:0 8px 0 10px;cursor:pointer}',
-      '.dsh-git-rowwrap:hover{background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2))}',
-      '.dsh-git-rowwrap[data-active="true"]{background:var(--dsw-alias-bg-layer-2)}',
-      '.dsh-git-rowmain{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:6px;padding:3px 0;border:0;background:0 0;color:inherit;font:inherit;text-align:left;cursor:pointer}',
-      '.dsh-git-mark{width:12px;flex:none;text-align:center;font-weight:600;font-size:11px;color:var(--dsw-alias-label-secondary)}',
+      '.dsh-git-scroll.split{flex:0 0 auto;max-height:42%}',
+      '.dsh-git-toolbar{flex:none;display:flex;align-items:center;gap:6px;padding:6px 8px 4px 12px;color:var(--dsw-alias-label-secondary);font-size:11px}',
+      '.dsh-git-toolbartext{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.dsh-git-ghost{flex:none;padding:1px 8px;border:.5px solid var(--dsw-alias-border-l1);border-radius:999px;background:0 0;color:var(--dsw-alias-label-secondary);font:inherit;font-size:11px;white-space:nowrap;cursor:pointer}',
+      '.dsh-git-ghost:hover:not(:disabled){border-color:var(--dsw-alias-label-secondary);color:var(--dsw-alias-label-primary)}',
+      '.dsh-git-ghost:disabled{opacity:.45;cursor:default}',
+      '.dsh-git-ghost[data-on="true"]{border-color:var(--dsw-alias-brand-primary);color:var(--dsw-alias-brand-primary)}',
+      '.dsh-git-sectionhead{display:flex;align-items:center;gap:6px;padding:8px 8px 3px 12px;color:var(--dsw-alias-label-secondary);font-size:11px}',
+      '.dsh-git-sectiontitle{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.dsh-git-count{flex:none;color:var(--dsw-alias-state-idle-primary)}',
+      '.dsh-git-batch{margin-left:auto;flex:none;padding:0;border:0;background:0 0;color:var(--dsw-alias-label-secondary);font:inherit;font-size:11px;cursor:pointer}',
+      '.dsh-git-batch:hover:not(:disabled){color:var(--dsw-alias-label-primary)}',
+      '.dsh-git-batch:disabled{opacity:.45;cursor:default}',
+      '.dsh-git-dirrow{display:flex;align-items:center;gap:4px;width:100%;min-width:0;box-sizing:border-box;padding:3px 8px 3px 13px;border:0;background:0 0;color:var(--dsw-alias-label-secondary);font:inherit;font-size:11px;text-align:left;cursor:pointer}',
+      '.dsh-git-dirrow:hover{color:var(--dsw-alias-label-primary)}',
+      '.dsh-git-caret{flex:none;width:9px;text-align:center;font-size:9px;line-height:1}',
+      '.dsh-git-dirname{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.dsh-git-dircount{flex:none;color:var(--dsw-alias-state-idle-primary);font-size:10px}',
+      '.dsh-git-file{display:flex;align-items:center;gap:4px;min-width:0;padding-right:6px}',
+      '.dsh-git-file:hover{background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2))}',
+      '.dsh-git-file[data-active="true"]{background:var(--dsw-alias-bg-layer-2)}',
+      '.dsh-git-filemain{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:6px;padding:4px 0 4px 12px;border:0;background:0 0;color:inherit;font:inherit;text-align:left;cursor:pointer}',
+      '.dsh-git-filename{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.dsh-git-row .dsh-git-filename{flex:1 1 auto}',
+      '.dsh-git-mark{flex:none;width:12px;text-align:center;font-weight:600;font-size:11px;color:var(--dsw-alias-label-secondary)}',
       '.dsh-git-mark.m{color:var(--dsw-alias-state-warn-primary)}',
       '.dsh-git-mark.a{color:var(--dsw-alias-state-success-primary)}',
       '.dsh-git-mark.d,.dsh-git-mark.u{color:var(--dsw-alias-state-error-primary)}',
-      '.dsh-git-name{flex:none;max-width:62%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-      '.dsh-git-dir{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-secondary);font-size:11px}',
+      '.dsh-git-fileact{flex:none;opacity:.5;padding:1px 6px;border:0;border-radius:4px;background:0 0;color:var(--dsw-alias-label-secondary);font:inherit;font-size:11px;cursor:pointer}',
+      '.dsh-git-file:hover .dsh-git-fileact{opacity:1}',
+      '.dsh-git-fileact:hover:not(:disabled){background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary)}',
+      '.dsh-git-fileact:focus-visible{opacity:1}',
+      '.dsh-git-fileact:disabled{opacity:.3;cursor:default}',
       '.dsh-git-hint{flex:none;color:var(--dsw-alias-label-secondary);font-size:11px}',
-      '.dsh-git-act{flex:none;display:none;align-items:center;justify-content:center;width:20px;height:20px;padding:0;border:0;background:0 0;border-radius:4px;color:var(--dsw-alias-label-secondary);font-size:13px;line-height:1;cursor:pointer}',
-      '.dsh-git-rowwrap:hover .dsh-git-act{display:inline-flex}',
-      '.dsh-git-act:hover{background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary)}',
+      '.dsh-git-row{display:flex;align-items:center;gap:6px;width:100%;min-width:0;box-sizing:border-box;padding:4px 10px 4px 12px;color:inherit;font:inherit;text-align:left}',
       '.dsh-git-diff{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;border-top:.5px solid var(--dsw-alias-border-l1)}',
-      '.dsh-git-diffhead{flex:none;display:flex;align-items:center;gap:6px;height:30px;padding:0 6px 0 10px;color:var(--dsw-alias-label-secondary);font-size:11px}',
+      '.dsh-git-diffhead{flex:none;display:flex;align-items:center;gap:6px;height:32px;padding:0 6px 0 12px;border-bottom:.5px solid var(--dsw-alias-border-l1);color:var(--dsw-alias-label-secondary);font-size:11px}',
       '.dsh-git-path{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-      '.dsh-git-code{flex:1 1 auto;min-height:0;overflow:auto;scrollbar-gutter:stable;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;line-height:1.55}',
-      '.dsh-git-l{white-space:pre;padding:0 10px}',
-      '.dsh-git-l.hunk{color:var(--dsw-alias-label-secondary);background:var(--dsw-alias-bg-layer-2)}',
-      '.dsh-git-l.meta{color:var(--dsw-alias-label-secondary);opacity:.75}',
-      '.dsh-git-l.add{color:var(--dsw-alias-state-success-primary);background:color-mix(in srgb,var(--dsw-alias-state-success-primary) 10%,transparent)}',
-      '.dsh-git-l.del{color:var(--dsw-alias-state-error-primary);background:color-mix(in srgb,var(--dsw-alias-state-error-primary) 10%,transparent)}',
-      '.dsh-git-commit{flex:none;border-top:.5px solid var(--dsw-alias-border-l1);padding:8px}',
-      '.dsh-git-commit textarea{width:100%;box-sizing:border-box;min-height:54px;max-height:160px;resize:vertical;padding:6px 8px;border-radius:4px;border:.5px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;outline:none}',
+      '.dsh-git-code{flex:1 1 auto;min-height:0;overflow:auto;scrollbar-gutter:stable;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;line-height:1.6}',
+      '.dsh-git-line{display:grid;grid-template-columns:44px 44px 14px minmax(0,auto);width:max-content;min-width:100%;box-sizing:border-box}',
+      '.dsh-git-lno{padding-right:8px;text-align:right;color:var(--dsw-alias-label-secondary);opacity:.6;font-size:10px;user-select:none;-webkit-user-select:none}',
+      '.dsh-git-sign{text-align:center;color:var(--dsw-alias-label-secondary);user-select:none;-webkit-user-select:none}',
+      '.dsh-git-text{padding-right:16px;white-space:pre}',
+      '.dsh-git-line.add{background:color-mix(in srgb,var(--dsw-alias-state-success-primary) 12%,transparent)}',
+      '.dsh-git-line.del{background:color-mix(in srgb,var(--dsw-alias-state-error-primary) 12%,transparent)}',
+      '.dsh-git-line.add .dsh-git-sign{color:var(--dsw-alias-state-success-primary)}',
+      '.dsh-git-line.del .dsh-git-sign{color:var(--dsw-alias-state-error-primary)}',
+      '.dsh-git-line.meta{color:var(--dsw-alias-label-secondary);opacity:.8}',
+      '.dsh-git-word{border-radius:2px;background:color-mix(in srgb,var(--dsw-alias-state-warn-primary) 26%,transparent);color:inherit}',
+      '.dsh-git-line.add .dsh-git-word{background:color-mix(in srgb,var(--dsw-alias-state-success-primary) 32%,transparent)}',
+      '.dsh-git-line.del .dsh-git-word{background:color-mix(in srgb,var(--dsw-alias-state-error-primary) 32%,transparent)}',
+      '.dsh-git-filehead{display:flex;align-items:center;gap:8px;padding:5px 10px 4px 12px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);font-size:11px}',
+      '.dsh-git-filepath{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-primary)}',
+      '.dsh-git-filestat{flex:none}',
+      '.dsh-git-hunkrow{display:flex;align-items:center;gap:6px;padding:2px 10px 2px 4px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);font-size:11px}',
+      '.dsh-git-hunkbtn{flex:none;width:16px;height:16px;padding:0;border:0;background:0 0;color:inherit;font-size:10px;line-height:1;cursor:pointer}',
+      '.dsh-git-hunkbtn:hover{color:var(--dsw-alias-label-primary)}',
+      '.dsh-git-hunktext{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.dsh-git-note{margin:0;padding:10px 12px;color:var(--dsw-alias-label-secondary);font-size:12px;word-break:break-word}',
+      '.dsh-git-note.error{color:var(--dsw-alias-state-error-primary)}',
+      '.dsh-git-state{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:24px 18px;text-align:center;color:var(--dsw-alias-label-secondary)}',
+      '.dsh-git-state svg{opacity:.45}',
+      '.dsh-git-statetitle{margin:0;color:var(--dsw-alias-label-primary);font-size:13px}',
+      '.dsh-git-statedetail{margin:0;max-width:100%;font-size:11px;opacity:.8;word-break:break-all}',
+      '.dsh-git-banner{margin:6px 8px 0;padding:6px 9px;border-radius:6px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);font-size:11px}',
+      '.dsh-git-banner.error{color:var(--dsw-alias-state-error-primary)}',
+      '.dsh-git-metablock{padding:8px 12px 2px}',
+      '.dsh-git-message{margin-top:4px;white-space:pre-wrap;word-break:break-word;color:var(--dsw-alias-label-primary);font-size:12px}',
+      '.dsh-git-commit{flex:none;border-top:.5px solid var(--dsw-alias-border-l1);padding:8px 10px 10px}',
+      '.dsh-git-commit textarea{width:100%;box-sizing:border-box;min-height:68px;max-height:200px;resize:vertical;padding:7px 9px;border-radius:6px;border:.5px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;line-height:1.5;outline:none}',
       '.dsh-git-commit textarea:focus{border-color:var(--dsw-alias-brand-primary)}',
-      '.dsh-git-commitrow{display:flex;align-items:center;gap:8px;margin-top:6px}',
-      '.dsh-git-primary{margin-left:auto;padding:4px 12px;border:0;border-radius:4px;background:var(--dsw-alias-brand-primary);color:var(--dsw-alias-bg-base);font:inherit;font-size:12px;cursor:pointer}',
+      '.dsh-git-commit textarea:disabled{opacity:.6}',
+      '.dsh-git-commitrow{display:flex;align-items:center;gap:8px;margin-top:7px;min-width:0}',
+      '.dsh-git-commitrow .dsh-git-hint{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.dsh-git-kbd{flex:none;padding:1px 5px;border:.5px solid var(--dsw-alias-border-l1);border-radius:4px;color:var(--dsw-alias-label-secondary);font-size:10px;white-space:nowrap}',
+      '.dsh-git-primary{flex:none;padding:5px 12px;border:0;border-radius:6px;background:var(--dsw-alias-brand-primary);color:var(--dsw-alias-bg-base);font:inherit;font-size:12px;font-weight:500;white-space:nowrap;cursor:pointer}',
+      '.dsh-git-primary:hover:not(:disabled){opacity:.9}',
       '.dsh-git-primary:disabled{opacity:.5;cursor:default}',
       '.dsh-git-graph{flex:none}',
-      '.dsh-git-commit-row{display:flex;align-items:center;gap:8px;width:100%;min-width:0;box-sizing:border-box;padding:2px 8px 2px 4px;border:0;background:0 0;color:inherit;font:inherit;text-align:left;cursor:pointer}',
+      '.dsh-git-commit-row{display:flex;align-items:center;gap:8px;width:100%;min-width:0;box-sizing:border-box;padding:2px 10px 2px 4px;border:0;background:0 0;color:inherit;font:inherit;text-align:left;cursor:pointer}',
       '.dsh-git-commit-row:hover{background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2))}',
       '.dsh-git-hash{flex:none;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;color:var(--dsw-alias-label-secondary)}',
       '.dsh-git-subject{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',

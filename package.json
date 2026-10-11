@@ -4,6 +4,11 @@
   "private": true,
   "type": "module",
   "description": "Session right-Sidebar Git panel: changes, diffs, commit graph, staging and commit.",
+  "scripts": {
+    "smoke": "node tools/smoke.mjs",
+    "client-smoke": "node tools/client-smoke.mjs",
+    "test": "node tools/smoke.mjs && node tools/client-smoke.mjs"
+  },
   "icon": "./icon.svg",
   "meta": {
     "title": "Git 面板",
