@@ -20,8 +20,10 @@ import { createGit } from '../lib/git.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..');
-const scratch = join(root, '.smoke');
-const ioDir = join(root, '.smoke-io');
+// Fixture repository and captured stdio live under the OS temp directory: a test run
+// must not leave anything behind inside the plugin.
+const scratch = join(tmpdir(), 'tw-smoke-repo');
+const ioDir = join(tmpdir(), 'tw-smoke-io');
 let spawnCount = 0;
 
 /** Run one command, capturing both streams through file descriptors. */
@@ -827,6 +829,7 @@ check(
 
 await rm(remoteDir, { recursive: true, force: true });
 await rm(scratch, { recursive: true, force: true });
+await rm(ioDir, { recursive: true, force: true });
 console.log(
   failures === 0
     ? `\nALL PASS${skips === 0 ? '' : ` (${String(skips)} skipped)`}`

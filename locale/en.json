@@ -1,4 +1,4 @@
 {
   "title": "Git panel",
-  "description": "Visual Git in the Session right Sidebar: changes, diffs, commit graph, staging and commit."
+  "description": "Visual Git in the Session right Sidebar: changes and diffs, commit graph, branches and tags, remote sync, and block-by-block conflict resolution; a branch chip sits under the composer."
 }
