@@ -92,7 +92,7 @@ https://git.ustc.edu.cn/Charien/tokenworks-git-panel.git
 | 冲突逐块取舍 | 解析 `<<<<<<<` 标记后**就地改写文件**（`replaceIfVersion` 版本守卫，文件被别人改过就拒绝） |
 | 冲突整文件取一方 | `checkout --ours / --theirs --` 再 `add --`（暂存即标记已解决） |
 
-不提供 `push --force`、`branch -D`、`checkout --force`、`reset --hard`、`rebase`，也不会删除未跟踪文件。
+上表就是全部写操作：每一条都是固定的 argv 词表，`ref` 与 `path` 都夹带不了 flag。未跟踪的文件不会被删除。
 
 ## 安全边界
 
@@ -139,7 +139,7 @@ https://git.ustc.edu.cn/Charien/tokenworks-git-panel.git
 - [x] 输入框下方的分支胶囊：当前分支与 ↑/↓，点开即可切换，并与面板**双向即时同步**（任一界面改动仓库，另一界面重读状态、当前页签的数据与已打开的 diff）
 - [x] 冲突处理：按块可视化（我方 / 对方 / diff3 共同祖先三栏、块内三选一、整文件取一方）、顶部横幅说明未结束的操作、逐操作说明后果的「放弃」确认；改文件走 `replaceIfVersion` 版本守卫
 - [x] 安全边界：信任栅栏、工作区栅栏、rev / ref / 路径白名单（拒绝选项注入与通配展开）、只读栅栏、写操作串行、超时单独映射
-- [x] 一轮完整审计的修复：`reset --hard` 选项注入、`f[1].txt` 误伤邻居 `f1.txt`、非 ASCII 路径被转义、合并提交的组合差异读不了、提交图菱形接错提交点、重复的批量按钮、死 locale 键
+- [x] 一轮完整审计的修复：用户可控 rev 能夹带 git 选项、`f[1].txt` 误伤邻居 `f1.txt`、非 ASCII 路径被转义、合并提交的组合差异读不了、提交图菱形接错提交点、重复的批量按钮、死 locale 键
 - [x] 文档：本 README、banner 与 LICENSE
 - [x] 测试：Host 74 + Client 147 条断言（真实 git 与微型 React 双轨）
 - [x] 双远程镜像：`git push origin` 一次同推 GitHub 与校内 GitLab
@@ -157,7 +157,6 @@ https://git.ustc.edu.cn/Charien/tokenworks-git-panel.git
 - [ ] **一处已知内存增长**：tab 标题的共享状态按会话累积不回收（每会话几十字节，改动风险大于收益）
 - [ ] **从远端安装未经实机验证**：`install_bundle github:…` 只按 spec 解析规则写进文档
 - [ ] **内网 CI 结果未查看**：GitLab 的 SAST / Secret 检测流水线我没有渠道读结果
-- [ ] 有意不提供（不是遗漏）：`push --force`、`branch -D`、`reset --hard`、交互式 rebase、stash、子模块 / worktree、`-X ours|theirs`
 
 ## 许可
 
