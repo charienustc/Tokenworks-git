@@ -1356,5 +1356,37 @@ function postTo(harness, path) {
   check('dock: a workspace outside git renders no chip', plain.byClass('tw-git-dockchip').length === 0);
 }
 
+// ==============================================================================
+// Scenario: a Host that still returns remote names only
+// ==============================================================================
+{
+  const h = createHarness({
+    responder: (url) => {
+      const { pathname } = new URL(url, 'http://localhost');
+      if (pathname.endsWith('/remotes')) return { ok: true, remotes: ['origin'] };
+      if (pathname.endsWith('/branches')) return BRANCHES_PAYLOAD;
+      if (pathname.endsWith('/status')) return statusPayload();
+      return { ok: true };
+    },
+  });
+  await h.mountBody();
+  h.click(h.byText('分支')[0]);
+  await h.settle();
+  const rows = h.byClass('tw-git-brow');
+  check(
+    'branches: a name-only remotes payload still renders the remote name',
+    rows.some((node) => {
+      const label = h.text(node).trim();
+      return label.startsWith('origin') && !label.includes('origin/');
+    }),
+    JSON.stringify(rows.map((node) => h.text(node).trim())),
+  );
+  check(
+    'branches: a name-only remote simply has no URL line',
+    !h.text().includes('undefined') && !h.text().includes('null'),
+    h.text(),
+  );
+}
+
 console.log(failures === 0 ? '\nALL PASS' : `\n${String(failures)} FAILURE(S)`);
 process.exit(failures === 0 ? 0 : 1);

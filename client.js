@@ -1725,7 +1725,13 @@ window.__ModuleLoader__.load({
         return parts;
       };
 
-      const remoteList = remotes ?? [];
+      // The Host may still be the older build that returned names only, and its new
+      // shape only lands on the next Host restart, so both are accepted here.
+      const remoteList = (remotes ?? []).map((remote) =>
+        typeof remote === 'string'
+          ? { name: remote, url: null }
+          : { name: String(remote.name ?? ''), url: remote.url ?? null },
+      );
       const headRef = refs.find((ref) => ref.head === true);
       const headUpstream = headRef === undefined || headRef.upstream === null ? null : headRef.upstream;
 
