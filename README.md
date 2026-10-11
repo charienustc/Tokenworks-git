@@ -142,13 +142,11 @@ https://git.ustc.edu.cn/Charien/tokenworks-git-panel.git
 - [x] 一轮完整审计的修复：用户可控 rev 能夹带 git 选项、`f[1].txt` 误伤邻居 `f1.txt`、非 ASCII 路径被转义、合并提交的组合差异读不了、提交图菱形接错提交点、重复的批量按钮、死 locale 键
 - [x] 文档：本 README、banner 与 LICENSE
 - [x] 测试：Host 74 + Client 147 条断言（真实 git 与微型 React 双轨）
-- [x] 双远程镜像：`git push origin` 一次同推 GitHub 与校内 GitLab
 
 ### 待完成
 
 - [ ] **跨平台**：目前只在 Windows 上实测过，macOS / Linux 未经真机验证
-- [ ] **渲染结果未经人眼确认**：横幅、冲突标记的可读性、窄侧栏截断、浅色 / 深色对比、胶囊菜单是否被上层浮层裁切（本环境无法截图）
-- [ ] **大仓库性能未量化**：几百条提交的图、超大 patch 的 diff；`parseFilePatch` 与 `layoutGraph` 每次渲染重算（有意的取舍，代价没量过）
+- [ ] **大仓库性能未量化**：几百条提交的图、超大 patch 的 diff；`parseFilePatch` 与 `layoutGraph` 每次渲染重算
 - [ ] **冲突不能就地手改**：可以在面板里按块取舍，或整个文件取一方；要写自己的内容仍得回到编辑器
 - [ ] **冲突全部解决但还没提交时，顶部横幅会提前消失**：`operation` 只在存在未合并路径时才探测（省掉每次轮询的子进程），此时合并其实还没结束
 - [ ] **没有部分暂存**：不支持按 hunk 暂存（只有整文件 / 整组 / 全部）
@@ -156,7 +154,6 @@ https://git.ustc.edu.cn/Charien/tokenworks-git-panel.git
 - [ ] **工作区栅栏不做 realpath**：符号链接 / junction 理论上能绕过字符串检查（需要 fs 提供 realpath 能力）
 - [ ] **一处已知内存增长**：tab 标题的共享状态按会话累积不回收（每会话几十字节，改动风险大于收益）
 - [ ] **从远端安装未经实机验证**：`install_bundle github:…` 只按 spec 解析规则写进文档
-- [ ] **内网 CI 结果未查看**：GitLab 的 SAST / Secret 检测流水线我没有渠道读结果
 
 ## 许可
 
