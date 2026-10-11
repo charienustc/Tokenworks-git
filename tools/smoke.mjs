@@ -75,14 +75,23 @@ function fakeSubprocess() {
 
 /** Minimal stand-in for the composition's filesystem provider. */
 function fakeFs() {
+  const intents = [];
+  const versionOf = async (path) => {
+    const info = await fsStat(path);
+    return `${String(info.mtimeMs)}:${String(info.size)}`;
+  };
   return {
     async resolve(path) {
       return path;
     },
+    /** Containment is a string prefix here; the real backend realpaths both ends. */
+    contains(parent, child) {
+      return String(child).startsWith(String(parent));
+    },
     async stat(path) {
       try {
         const info = await fsStat(path);
-        return { path, size: info.size };
+        return { path, size: info.size, version: await versionOf(path) };
       } catch {
         return undefined;
       }
@@ -91,12 +100,31 @@ function fakeFs() {
       const buffer = await readFile(path);
       return new Uint8Array(buffer.subarray(0, maxBytes));
     },
+    async readText(path) {
+      return readFile(path, 'utf8');
+    },
+    /** Records the intent, and enforces the same stale-version rule the real one does. */
+    async writeText(path, content, intent) {
+      intents.push({ path, intent });
+      if (intent !== undefined && intent.kind === 'replaceIfVersion') {
+        const current = await versionOf(path);
+        if (intent.version !== current) {
+          const error = new Error('stale version');
+          error.code = 'FS_STALE_VERSION';
+          throw error;
+        }
+      }
+      await writeFile(path, content, 'utf8');
+      return { operation: 'update', version: await versionOf(path), before: null, after: path };
+    },
+    intents,
   };
 }
 
+const fakeFsInstance = fakeFs();
 const ctx = {
   subprocess: fakeSubprocess(),
-  get: (name) => (name === 'fs' ? fakeFs() : undefined),
+  get: (name) => (name === 'fs' ? fakeFsInstance : undefined),
 };
 
 let failures = 0;
@@ -686,13 +714,48 @@ check(
 );
 
 const conflictDiff = await git.diff(scratch, { side: 'conflict', path: 'conflict.txt' });
+check('conflict: a conflicted path is answered as blocks', conflictDiff.conflicted === true, JSON.stringify(conflictDiff.conflicted));
+
+// The block view a current Host answers with: no markers to parse on the client side,
+// and no second copy of the file as patch text.
+const blocks = (conflictDiff.segments ?? []).filter((segment) => segment.kind === 'conflict');
+check('conflict: the view carries one block per conflict', blocks.length === 1, JSON.stringify(conflictDiff.segments));
 check(
-  'conflict: the file view carries the conflict markers',
-  conflictDiff.conflicted === true &&
-    conflictDiff.text.includes('<<<<<<<') &&
-    conflictDiff.text.includes('>>>>>>>'),
-  JSON.stringify(conflictDiff.text.split('\n').slice(0, 2)),
+  'conflict: the block carries both sides with the labels from the markers',
+  blocks.length === 1 &&
+    blocks[0].ours.join('|').trim() === 'from main' &&
+    blocks[0].theirs.join('|').trim() === 'from other' &&
+    blocks[0].oursLabel === 'HEAD' &&
+    blocks[0].theirsLabel === 'probe/other',
+  JSON.stringify(blocks[0]),
 );
+check(
+  'conflict: the patch text is not sent alongside the blocks',
+  conflictDiff.text === '' && conflictDiff.segments.some((segment) => segment.kind === 'text'),
+  JSON.stringify({ text: conflictDiff.text, kinds: conflictDiff.segments.map((segment) => segment.kind) }),
+);
+
+let badBlockIndex = null;
+try {
+  await git.resolveConflict(scratch, 'conflict.txt', 9, 'ours');
+} catch (error) {
+  badBlockIndex = error;
+}
+check('conflict: a block that does not exist is refused', badBlockIndex !== null && badBlockIndex.code === 'bad-request');
+let badBlockSide = null;
+try {
+  await git.resolveConflict(scratch, 'conflict.txt', 0, '--theirs');
+} catch (error) {
+  badBlockSide = error;
+}
+check('conflict: a block side is a whitelisted word', badBlockSide !== null && badBlockSide.code === 'bad-request');
+let badTakeSide = null;
+try {
+  await git.takeConflictSide(scratch, 'conflict.txt', '--force');
+} catch (error) {
+  badTakeSide = error;
+}
+check('conflict: taking a side is a whitelisted word too', badTakeSide !== null && badTakeSide.code === 'bad-request');
 
 let badAbort = null;
 try {
@@ -708,6 +771,58 @@ check(
   'conflict: abandoning the merge clears the operation and the conflicts',
   resolved.operation === null && resolved.changes.conflicted.length === 0,
   JSON.stringify({ operation: resolved.operation, conflicted: resolved.changes.conflicted.length }),
+);
+
+// --- resolving a single block rewrites the file, guarded by its version ---------
+await git.merge(scratch, 'probe/other').catch(() => undefined);
+const blockResolution = await git.resolveConflict(scratch, 'conflict.txt', 0, 'theirs');
+// Checked with newlines normalised: this machine's git checks out CRLF, and the parser
+// has to survive that either way.
+const written = (await readFile(join(scratch, 'conflict.txt'), 'utf8')).replace(/\r\n/g, '\n');
+check(
+  'conflict: resolving a block writes the chosen side without its markers',
+  written === 'from other\n' && blockResolution.remaining === 0,
+  JSON.stringify({ written, blockResolution }),
+);
+const intent = fakeFsInstance.intents.at(-1);
+check(
+  'conflict: the rewrite is guarded by the version that was read',
+  intent !== undefined && intent.intent.kind === 'replaceIfVersion' && typeof intent.intent.version === 'string',
+  JSON.stringify(intent && intent.intent),
+);
+const stillUnmerged = await git.status(scratch);
+check(
+  'conflict: rewriting the worktree does not by itself mark the path resolved',
+  stillUnmerged.changes.conflicted.some((entry) => entry.path === 'conflict.txt'),
+  JSON.stringify(stillUnmerged.changes.conflicted.map((entry) => entry.path)),
+);
+let twice = null;
+try {
+  await git.resolveConflict(scratch, 'conflict.txt', 0, 'ours');
+} catch (error) {
+  twice = error;
+}
+check('conflict: the same block cannot be resolved twice', twice !== null && twice.code === 'bad-request');
+
+await git.abort(scratch, 'merge');
+
+// --- taking a whole side lets git write the file and resolve the path ----------
+await git.merge(scratch, 'probe/other').catch(() => undefined);
+// Taking theirs rather than ours on purpose: ours matches HEAD here, so git would
+// report no staged change at all, and the staging step would go unproven.
+await git.takeConflictSide(scratch, 'conflict.txt', 'theirs');
+const afterTake = await git.status(scratch);
+const taken = (await readFile(join(scratch, 'conflict.txt'), 'utf8')).replace(/\r\n/g, '\n');
+check(
+  'conflict: taking the whole file leaves that side in the worktree',
+  taken === 'from other\n',
+  JSON.stringify(taken),
+);
+check(
+  'conflict: and staging it is what marks the path resolved',
+  afterTake.changes.conflicted.length === 0 &&
+    afterTake.changes.staged.some((entry) => entry.path === 'conflict.txt'),
+  JSON.stringify({ conflicted: afterTake.changes.conflicted.length, staged: afterTake.changes.staged.map((entry) => entry.path) }),
 );
 
 await rm(remoteDir, { recursive: true, force: true });

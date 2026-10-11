@@ -98,6 +98,25 @@ window.__ModuleLoader__.load({
       'confirm.abortRevert': '撤销这次还原，回到还原前的状态，你已经做的冲突解决会丢失。',
       'confirm.abortRebase': '撤销这次变基，回到变基前的状态，你已经做的冲突解决会丢失。',
       'diff.conflictNote': '冲突文件：下面是当前内容（含 <<<<<<< 标记）。解决后暂存即表示冲突已解决。',
+      'conflict.count': '共 {n} 处冲突',
+      'conflict.block': '冲突 {n}',
+      'conflict.oursLabel': '我方 · {label}',
+      'conflict.theirsLabel': '对方 · {label}',
+      'conflict.baseLabel': '原始 · 共同祖先',
+      'conflict.useOurs': '采用我方',
+      'conflict.useTheirs': '采用对方',
+      'conflict.useBoth': '都保留',
+      'conflict.fileOurs': '整个文件采用我方',
+      'conflict.fileTheirs': '整个文件采用对方',
+      'conflict.takeDetail': '整个文件会换成{side}的版本，另一侧的改动被丢弃，并顺带把文件标记为已解决。',
+      'conflict.oursName': '我方',
+      'conflict.theirsName': '对方',
+      'conflict.tookSide': '已采用{side}的版本',
+      'conflict.blockDone': '已解决一处冲突',
+      'conflict.blockDoneAll': '冲突已全部解决，暂存即可提交',
+      'conflict.hint': '按钮会就地改写文件；所有块都解决后，暂存即表示冲突已解决。',
+      'conflict.clean': '文件里已经没有冲突标记了，暂存即表示冲突已解决。',
+      'conflict.truncated': '文件太大，无法按冲突块显示；请在编辑器里解决。',
       'diff.empty': '这个文件没有可显示的差异。',
       'diff.binary': '二进制文件，无法显示文本差异。',
       'diff.truncated': '差异过大，只显示了一部分。',
@@ -239,6 +258,25 @@ window.__ModuleLoader__.load({
       'confirm.abortRevert': 'Undoes this revert and returns to the state before it; resolutions made so far are lost.',
       'confirm.abortRebase': 'Undoes this rebase and returns to the state before it; resolutions made so far are lost.',
       'diff.conflictNote': 'Conflicted file: this is the current content, markers included. Staging it marks the conflict resolved.',
+      'conflict.count': '{n} conflict(s)',
+      'conflict.block': 'Conflict {n}',
+      'conflict.oursLabel': 'Ours · {label}',
+      'conflict.theirsLabel': 'Theirs · {label}',
+      'conflict.baseLabel': 'Base · common ancestor',
+      'conflict.useOurs': 'Take ours',
+      'conflict.useTheirs': 'Take theirs',
+      'conflict.useBoth': 'Keep both',
+      'conflict.fileOurs': 'Whole file: ours',
+      'conflict.fileTheirs': 'Whole file: theirs',
+      'conflict.takeDetail': 'The file is replaced with the {side} version, the other side is discarded, and the path is marked resolved.',
+      'conflict.oursName': 'ours',
+      'conflict.theirsName': 'theirs',
+      'conflict.tookSide': 'Took the {side} version',
+      'conflict.blockDone': 'One conflict resolved',
+      'conflict.blockDoneAll': 'All conflicts resolved; stage the file to commit',
+      'conflict.hint': 'These buttons rewrite the file in place; once every block is resolved, staging marks the conflict resolved.',
+      'conflict.clean': 'No conflict markers are left in this file; staging marks it resolved.',
+      'conflict.truncated': 'Too large to show block by block; resolve it in an editor.',
       'diff.empty': 'No text difference to show.',
       'diff.binary': 'Binary file: no text diff.',
       'diff.truncated': 'The diff is large; only part of it is shown.',
@@ -431,6 +469,8 @@ window.__ModuleLoader__.load({
       discard: (root, paths) => post(`${API}/discard`, { root, paths }),
       undo: (root, action, rev, mode) => post(`${API}/undo`, { root, action, rev, mode }),
       abort: (root, operation) => post(`${API}/abort`, { root, operation }),
+      takeSide: (root, path, side) => post(`${API}/take-side`, { root, path, side }),
+      resolveBlock: (root, path, index, side) => post(`${API}/resolve-block`, { root, path, index, side }),
     };
 
     /** Split a repository-relative path into its display name and directory. */
@@ -1052,6 +1092,112 @@ window.__ModuleLoader__.load({
       return index === -1 ? text : text.slice(index + 1);
     }
 
+    /**
+     * A conflicted file, block by block: the context as it stands, and each conflict as
+     * a card carrying both sides with a button per choice. The pure text form (the
+     * markers themselves) stays available through the same pane when the Host is older.
+     */
+    function ConflictView(props) {
+      const { segments, busy, onResolve, onTakeSide, t } = props;
+      const blocks = segments.filter((segment) => segment.kind === 'conflict');
+      const nodes = [
+        h(
+          'div',
+          { key: 'bar', className: 'tw-git-cbar' },
+          h('span', { className: 'tw-git-ctotal' }, t('conflict.count', { n: blocks.length })),
+          h('span', { className: 'tw-git-spacer' }),
+          h(
+            'button',
+            {
+              key: 'ours',
+              type: 'button',
+              className: 'tw-git-ghost',
+              disabled: busy !== null,
+              onClick: () => onTakeSide('ours'),
+            },
+            t('conflict.fileOurs'),
+          ),
+          h(
+            'button',
+            {
+              key: 'theirs',
+              type: 'button',
+              className: 'tw-git-ghost',
+              disabled: busy !== null,
+              onClick: () => onTakeSide('theirs'),
+            },
+            t('conflict.fileTheirs'),
+          ),
+        ),
+      ];
+      for (const [at, segment] of segments.entries()) {
+        if (segment.kind === 'text') {
+          if (segment.lines.length === 0) continue;
+          nodes.push(
+            h('pre', { key: `t${String(at)}`, className: 'tw-git-ctext' }, segment.lines.join('\n')),
+          );
+          continue;
+        }
+        const side = (kind, label, lines) =>
+          h(
+            'div',
+            { key: kind, className: `tw-git-cside ${kind}` },
+            h(
+              'div',
+              { className: 'tw-git-clabel' },
+              kind === 'ours'
+                ? t('conflict.oursLabel', { label: label || 'HEAD' })
+                : kind === 'theirs'
+                  ? t('conflict.theirsLabel', { label: label || 'theirs' })
+                  : t('conflict.baseLabel'),
+            ),
+            h('pre', { className: 'tw-git-clines' }, lines.length === 0 ? ' ' : lines.join('\n')),
+          );
+        const act = (kind, choice, label) =>
+          h(
+            'button',
+            {
+              key: kind,
+              type: 'button',
+              className: 'tw-git-batch',
+              disabled: busy !== null,
+              onClick: () => onResolve(segment.index, choice),
+            },
+            label,
+          );
+        nodes.push(
+          h(
+            'div',
+            { key: `c${String(segment.index)}`, className: 'tw-git-cblock' },
+            h(
+              'div',
+              { className: 'tw-git-chead' },
+              h('span', { className: 'tw-git-ctitle' }, t('conflict.block', { n: segment.index + 1 })),
+              h('span', { className: 'tw-git-spacer' }),
+              act('useOurs', 'ours', t('conflict.useOurs')),
+              act('useTheirs', 'theirs', t('conflict.useTheirs')),
+              act('useBoth', 'both', t('conflict.useBoth')),
+            ),
+            h(
+              'div',
+              { className: 'tw-git-csides' },
+              // diff3 style records the common ancestor; show it when git provided it.
+              segment.base === null || segment.base === undefined
+                ? null
+                : side('base', '', segment.base),
+              side('ours', segment.oursLabel, segment.ours),
+              side('theirs', segment.theirsLabel, segment.theirs),
+            ),
+          ),
+        );
+      }
+      if (blocks.length === 0) {
+        nodes.push(h('p', { key: 'clean', className: 'tw-git-note' }, t('conflict.clean')));
+      }
+      nodes.push(h('p', { key: 'hint', className: 'tw-git-note' }, t('conflict.hint')));
+      return h('div', { className: 'tw-git-conflict' }, nodes);
+    }
+
     /** Centred placeholder for a state that has no list to show yet. */
     function PanelState(props) {
       const { title, detail, retry, t } = props;
@@ -1188,6 +1334,8 @@ window.__ModuleLoader__.load({
         canDiscardAll,
         stageAllGroups,
         discardAllGroups,
+        onResolveBlock,
+        onTakeSide,
         onStageAll,
         onDiscardAll,
         onToggleDir,
@@ -1260,6 +1408,12 @@ window.__ModuleLoader__.load({
         .map((group) => group.entries.find((entry) => entry.key === selection.key))
         .find((entry) => entry !== undefined);
       const letter = liveEntry === undefined ? selection.letter : liveEntry.letter;
+      // A conflicted path is answered with its blocks by a current Host, and with the
+      // raw markers by an older one; both are shown, differently.
+      const isConflict = selection.side === 'conflict';
+      const hasBlocks = Array.isArray(diff.diff === null || diff.diff === undefined ? null : diff.diff.segments)
+        ? diff.diff.segments.length > 0
+        : false;
       const pane = h(
         'div',
         { key: 'diff', className: 'tw-git-diff' },
@@ -1292,17 +1446,32 @@ window.__ModuleLoader__.load({
                 ? h(
                     React.Fragment,
                     null,
-                    diff.diff.conflicted === true
-                      ? h('p', { key: 'conflictnote', className: 'tw-git-note' }, t('diff.conflictNote'))
+                    isConflict && hasBlocks
+                      ? h(ConflictView, {
+                          segments: diff.diff.segments,
+                          busy,
+                          onResolve: (index, side) => onResolveBlock(selection.path, index, side),
+                          onTakeSide: (side) => onTakeSide(selection.path, side),
+                          t,
+                        })
                       : null,
-                    h(DiffCode, {
-                      text: diff.diff.text,
-                      binary: diff.diff.binary,
-                      truncated: diff.diff.truncated,
-                      empty: t('diff.empty'),
-                      resetKey: selection.key,
-                      t,
-                    }),
+                    isConflict && !hasBlocks && diff.diff.binary !== true
+                      ? h(
+                          'p',
+                          { key: 'conflictnote', className: 'tw-git-note' },
+                          t(diff.diff.truncated === true ? 'conflict.truncated' : 'diff.conflictNote'),
+                        )
+                      : null,
+                    isConflict && diff.diff.truncated === true
+                      ? null
+                      : h(DiffCode, {
+                          text: diff.diff.text,
+                          binary: diff.diff.binary,
+                          truncated: diff.diff.truncated,
+                          empty: t('diff.empty'),
+                          resetKey: selection.key,
+                          t,
+                        }),
                   )
                 : null,
         ),
@@ -2721,6 +2890,39 @@ window.__ModuleLoader__.load({
         });
       }, [ask, root, state, t]);
 
+      /**
+       * Write one conflict choice into the file. The Host rewrites it and refuses when
+       * the file changed since it was read, so a stale choice cannot clobber work.
+       */
+      const resolveConflictBlock = useCallback(
+        (path, index, side) =>
+          write('resolve', async () => {
+            const payload = await api.resolveBlock(root, path, index, side);
+            const remaining = payload.resolveBlock.remaining;
+            setNotice({
+              kind: 'ok',
+              text: remaining === 0 ? t('conflict.blockDoneAll') : t('conflict.blockDone'),
+            });
+          }),
+        [root, t, write],
+      );
+
+      /** Replace the whole file with one side, after saying what that throws away. */
+      const takeConflictSide = useCallback(
+        (path, side) => {
+          const name = t(side === 'ours' ? 'conflict.oursName' : 'conflict.theirsName');
+          ask({
+            title: t(side === 'ours' ? 'conflict.fileOurs' : 'conflict.fileTheirs'),
+            detail: t('conflict.takeDetail', { side: name }),
+            label: t(side === 'ours' ? 'conflict.fileOurs' : 'conflict.fileTheirs'),
+            danger: true,
+            run: () => api.takeSide(root, path, side),
+            done: t('conflict.tookSide', { side: name }),
+          });
+        },
+        [ask, root, t],
+      );
+
       const groups = useMemo(() => {
         if (state.phase !== 'ready' || state.status.repo !== true) return [];
         const status = state.status;
@@ -2882,6 +3084,8 @@ window.__ModuleLoader__.load({
             canDiscardAll: discardablePaths.length > 0,
             stageAllGroups: stageGroups,
             discardAllGroups: discardGroups,
+            onResolveBlock: resolveConflictBlock,
+            onTakeSide: takeConflictSide,
             onStageAll: () => stagePaths(stageablePaths),
             onDiscardAll: () => discardPaths(discardablePaths),
             onToggleDir: toggleDir,
@@ -2986,6 +3190,20 @@ window.__ModuleLoader__.load({
     /** Panel styles: theme tokens only, prefixed classes, no global selectors. */
     const CSS = [
       '.tw-git-operation{flex:none;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 10px;border-bottom:.5px solid var(--dsw-alias-border-l1);background:color-mix(in srgb,var(--dsw-alias-state-warn-primary) 12%,transparent)}',
+      '.tw-git-conflict{display:flex;flex-direction:column;gap:8px;padding:8px 10px}',
+      '.tw-git-cbar{display:flex;align-items:center;gap:6px;min-width:0}',
+      '.tw-git-ctotal{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-secondary);font-size:11px}',
+      '.tw-git-cblock{border:.5px solid var(--dsw-alias-border-l2);border-radius:8px;overflow:hidden}',
+      '.tw-git-chead{display:flex;align-items:center;gap:6px;padding:4px 8px;background:var(--dsw-alias-bg-layer-2)}',
+      '.tw-git-ctitle{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-secondary);font-size:11px}',
+      '.tw-git-csides{display:flex;gap:.5px;background:var(--dsw-alias-border-l1)}',
+      '.tw-git-cside{flex:1 1 50%;min-width:0;background:var(--dsw-alias-bg-base,transparent)}',
+      '.tw-git-cside.ours{border-top:.5px solid color-mix(in srgb,var(--dsw-alias-brand-primary) 45%,transparent)}',
+      '.tw-git-cside.theirs{border-top:.5px solid color-mix(in srgb,var(--dsw-alias-state-warn-primary) 45%,transparent)}',
+      '.tw-git-cside.base{flex:0 1 26%;border-top:.5px solid var(--dsw-alias-border-l2)}',
+      '.tw-git-clabel{padding:2px 8px;color:var(--dsw-alias-label-tertiary);font-size:10px}',
+      '.tw-git-clines{margin:0;padding:2px 8px 6px;overflow-x:auto;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;line-height:1.45;white-space:pre}',
+      '.tw-git-ctext{margin:0;padding:4px 8px;overflow-x:auto;color:var(--dsw-alias-label-tertiary);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;line-height:1.45;white-space:pre}',
       '.tw-git-operationtitle{flex:none;color:var(--dsw-alias-state-warn-primary);font-size:12px;font-weight:600}',
       '.tw-git-operationhint{flex:1 1 auto;min-width:0;color:var(--dsw-alias-label-secondary);font-size:11px}',
       '.tw-git-root{position:relative;height:100%;min-height:0;flex:auto;display:flex;flex-direction:column;color:var(--dsw-alias-label-primary);font-size:var(--dsh-content-font-size-secondary,13px);line-height:1.5}',

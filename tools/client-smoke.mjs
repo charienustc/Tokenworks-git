@@ -1678,5 +1678,85 @@ function postTo(harness, path) {
   );
 }
 
+// ==============================================================================
+// Scenario: a conflicted file is shown block by block and resolved in place
+// ==============================================================================
+{
+  const conflicted = statusPayload();
+  conflicted.status.operation = 'merge';
+  conflicted.status.changes.conflicted = [
+    { kind: 'conflicted', x: 'UU', y: 'UU', path: 'conflict.txt', origPath: null },
+  ];
+  conflicted.status.changes.total += 1;
+  const segments = [
+    { kind: 'text', lines: ['kept context'] },
+    { kind: 'conflict', index: 0, oursLabel: 'HEAD', theirsLabel: 'feature', ours: ['mine'], base: ['was'], theirs: ['theirs'] },
+    { kind: 'conflict', index: 1, oursLabel: 'HEAD', theirsLabel: 'feature', ours: ['mine2'], base: null, theirs: ['theirs2'] },
+  ];
+  const h = createHarness({
+    responder: (url) => {
+      const { pathname } = new URL(url, 'http://localhost');
+      if (pathname.endsWith('/status')) return conflicted;
+      if (pathname.endsWith('/diff')) {
+        return { ok: true, diff: { text: '', conflicted: true, segments, binary: false, truncated: false } };
+      }
+      if (pathname.endsWith('/resolve-block')) {
+        return { ok: true, resolveBlock: { path: 'conflict.txt', remaining: 1 } };
+      }
+      if (pathname.endsWith('/take-side')) return { ok: true, takeSide: { path: 'conflict.txt', side: 'ours' } };
+      if (pathname.endsWith('/remotes')) return { ok: true, remotes: [] };
+      return { ok: true };
+    },
+  });
+  await h.mountBody();
+  const row = h.byClass('tw-git-filemain').find((node) => h.text(node).includes('conflict.txt'));
+  h.click(row);
+  await h.settle();
+
+  check('block view: every conflict gets its own card', h.byClass('tw-git-cblock').length === 2, h.byClass('tw-git-cblock').length);
+  check(
+    'block view: both sides are labelled from the markers',
+    h.text().includes('我方 · HEAD') && h.text().includes('对方 · feature'),
+    h.text().slice(0, 80),
+  );
+  check('block view: the surrounding context stays visible', h.text().includes('kept context'));
+  check(
+    'block view: a diff3 ancestor becomes its own column when git provides it',
+    h.text().includes('原始 · 共同祖先') && h.text().includes('was') && h.byClass('tw-git-cside').length === 5,
+    h.byClass('tw-git-cside').length,
+  );
+  check(
+    'block view: the raw marker note is not used when blocks are available',
+    !h.text().includes('含 <<<<<<< 标记'),
+  );
+
+  h.click(h.byText('采用对方')[0]);
+  await h.settle();
+  const blockCall = postTo(h, '/resolve-block');
+  check(
+    'block view: a block choice posts that block index and side',
+    blockCall !== undefined && blockCall.body.index === 0 && blockCall.body.side === 'theirs',
+    JSON.stringify(blockCall && blockCall.body),
+  );
+  check('block view: the notice reports the block', h.text().includes('已解决一处冲突'), h.text().slice(-60));
+
+  h.click(h.byText('整个文件采用我方')[0]);
+  await h.settle();
+  const dialog = h.byClass('tw-git-dialog')[0];
+  check(
+    'block view: replacing the whole file asks first and names the cost',
+    dialog !== undefined && h.text(dialog).includes('另一侧的改动被丢弃'),
+    dialog && h.text(dialog),
+  );
+  h.click(h.descendants(dialog, (node) => node.type === 'button')[1]);
+  await h.settle();
+  const sideCall = postTo(h, '/take-side');
+  check(
+    'block view: confirming posts the side for the whole file',
+    sideCall !== undefined && sideCall.body.side === 'ours' && sideCall.body.path === 'conflict.txt',
+    JSON.stringify(sideCall && sideCall.body),
+  );
+}
+
 console.log(failures === 0 ? '\nALL PASS' : `\n${String(failures)} FAILURE(S)`);
 process.exit(failures === 0 ? 0 : 1);

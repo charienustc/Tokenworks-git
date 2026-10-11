@@ -353,6 +353,29 @@ export function apply(ctx, config) {
         json(res, 200, { ok: true, abort: { operation } });
       }),
     },
+    {
+      path: `${BASE}/take-side`,
+      POST: guarded(async (req, res) => {
+        const body = await jsonBody(req);
+        const root = await git.allowedRoot(body.root ?? '');
+        const path = String(body.path ?? '');
+        const side = String(body.side ?? '');
+        await serialize(() => git.takeConflictSide(root, path, side));
+        json(res, 200, { ok: true, takeSide: { path, side } });
+      }),
+    },
+    {
+      path: `${BASE}/resolve-block`,
+      POST: guarded(async (req, res) => {
+        const body = await jsonBody(req);
+        const root = await git.allowedRoot(body.root ?? '');
+        const path = String(body.path ?? '');
+        const side = String(body.side ?? '');
+        const index = Number(body.index);
+        const outcome = await serialize(() => git.resolveConflict(root, path, index, side));
+        json(res, 200, { ok: true, resolveBlock: outcome });
+      }),
+    },
   ];
 
   for (const endpoint of endpoints) {

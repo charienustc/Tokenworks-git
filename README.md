@@ -25,7 +25,8 @@ USTC Tokenworks 的**会话右侧栏 Git 面板**：改动清单、统一 diff�
 | 撤销与重写 | 放弃改动、`revert`、`cherry-pick`、`reset --soft/--mixed`、检出任意提交 |
 | 主题与语言 | 跟随 USTC Tokenworks 的浅色 / 深色；文案中英双语 |
 | 输入框下的分支胶囊 | 不用打开面板就能看到当前分支与领先 / 落后，点开即可切换（切换前确认） |
-| 冲突处理 | 冲突文件单列一组，点开显示**含冲突标记的当前内容**；顶部横幅说明哪个操作还没结束。放弃 = **撤销这次操作**（回到操作前的状态：本分支提交不变、对方改动不会被并入），确认框逐字说明后果 |
+| 冲突处理 | 按块展示：**上下文 + 每个冲突一张卡片**，卡片内并排「我方 / 对方」（diff3 风格时多一栏共同祖先），每块可**采用我方 / 采用对方 / 都保留**，也可**整个文件**取一方 |
+| 未完成的操作 | 顶部横幅说明还开着哪个合并 / 拣选 / 还原 / 变基，并给出**放弃**（撤销这次操作，回到操作前状态；确认框逐字说明后果） |
 
 面板不注册任何 agent 工具，也不依赖任何第三方库。
 
@@ -88,6 +89,8 @@ https://git.ustc.edu.cn/Charien/tokenworks-git-panel.git
 | 重置 | `reset --soft` / `reset --mixed` |
 | 还原 / 拣选 / 合并 | `revert --no-edit` / `cherry-pick` / `merge --no-edit` |
 | 放弃未完成的操作 | `merge --abort` / `cherry-pick --abort` / `revert --abort` / `rebase --abort` |
+| 冲突逐块取舍 | 解析 `<<<<<<<` 标记后**就地改写文件**（`replaceIfVersion` 版本守卫，文件被别人改过就拒绝） |
+| 冲突整文件取一方 | `checkout --ours / --theirs --` 再 `add --`（暂存即标记已解决） |
 
 不提供 `push --force`、`branch -D`、`checkout --force`、`reset --hard`、`rebase`，也不会删除未跟踪文件。
 
@@ -118,7 +121,7 @@ https://git.ustc.edu.cn/Charien/tokenworks-git-panel.git
 
 | 路径 | 作用 |
 | --- | --- |
-| [`index.js`](index.js) | Host 半：18 个端点、信任栅栏、错误码到 HTTP 状态的映射、写操作串行队列 |
+| [`index.js`](index.js) | Host 半：20 个端点、信任栅栏、错误码到 HTTP 状态的映射、写操作串行队列 |
 | [`lib/git.js`](lib/git.js) | git 适配器：命令表、porcelain v2 解析、名称 / rev / 路径守卫 |
 | [`client.js`](client.js) | Client 半：页签、三个视图、diff 查看器、提交图、确认弹窗、样式 |
 | [`cordis.patch.yml`](cordis.patch.yml) | bundle patch：把插件插进当前 profile |
@@ -132,7 +135,7 @@ https://git.ustc.edu.cn/Charien/tokenworks-git-panel.git
 pnpm test          # 或：node tools/smoke.mjs && node tools/client-smoke.mjs
 ```
 
-Host 74 条 + Client 149 条断言。前者对着临时仓库跑真实 git（含用本地裸仓库做远程同步的端到端），后者用微型 React 运行时渲染面板。
+Host 86 条 + Client 158 条断言。前者对着临时仓库跑真实 git（含用本地裸仓库做远程同步的端到端），后者用微型 React 运行时渲染面板。
 
 代码里没有平台专有分支，但**目前只在 Windows 上实测过**。受限沙箱里 git 的远程命令会因无法创建命名管道而显示 `SKIP`，不受限时真实执行。
 
@@ -145,7 +148,7 @@ Host 74 条 + Client 149 条断言。前者对着临时仓库跑真实 git（含
 - [x] 分支与标签：新建并直接切过去、切换、合并、安全删除；标签增删；远程仓库与 fetch 地址
 - [x] 远程同步：获取 / 拉取（只做快进）/ 推送（首次发布自动 `-u`）
 - [x] 输入框下方的分支胶囊：当前分支与 ↑/↓，点开即可切换，并与面板**双向即时同步**（任一界面改动仓库，另一界面重读状态、当前页签的数据与已打开的 diff）
-- [x] 冲突处理：冲突单独成组、显示含 `<<<<<<<` 标记的当前内容、顶部横幅说明哪个操作未结束、逐操作说明后果的「放弃」确认
+- [x] 冲突处理：按块可视化（我方 / 对方 / diff3 共同祖先三栏、块内三选一、整文件取一方）、顶部横幅说明未结束的操作、逐操作说明后果的「放弃」确认；改文件走 `replaceIfVersion` 版本守卫
 - [x] 安全边界：信任栅栏、工作区栅栏、rev / ref / 路径白名单（拒绝选项注入与通配展开）、只读栅栏、写操作串行、超时单独映射
 - [x] 一轮完整审计的修复：`reset --hard` 选项注入、`f[1].txt` 误伤邻居 `f1.txt`、非 ASCII 路径被转义、合并提交的组合差异读不了、提交图菱形接错提交点、重复的批量按钮、死 locale 键
 - [x] 文档：本 README、banner 与 LICENSE
@@ -157,7 +160,7 @@ Host 74 条 + Client 149 条断言。前者对着临时仓库跑真实 git（含
 - [ ] **跨平台**：目前只在 Windows 上实测过，macOS / Linux 未经真机验证
 - [ ] **渲染结果未经人眼确认**：横幅、冲突标记的可读性、窄侧栏截断、浅色 / 深色对比、胶囊菜单是否被上层浮层裁切（本环境无法截图）
 - [ ] **大仓库性能未量化**：几百条提交的图、超大 patch 的 diff；`parseFilePatch` 与 `layoutGraph` 每次渲染重算（有意的取舍，代价没量过）
-- [ ] **冲突没有三方视图**：只有"带标记的当前内容"，没有 ours / theirs / base 三栏，也没有逐块「取我方 / 取对方」
+- [ ] **冲突不能就地手改**：可以在面板里按块取舍，或整个文件取一方；要写自己的内容仍得回到编辑器
 - [ ] **没有部分暂存**：不支持按 hunk 暂存（只有整文件 / 整组 / 全部）
 - [ ] **git 2.23–2.30**：合并详情会回退成 `-m`（每个父一份差异，同一文件可能出现两次）
 - [ ] **工作区栅栏不做 realpath**：符号链接 / junction 理论上能绕过字符串检查（需要 fs 提供 realpath 能力）
