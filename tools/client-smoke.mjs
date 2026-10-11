@@ -643,10 +643,22 @@ function postTo(harness, path) {
 
   check('ready: toolbar shows the total', h.text(h.byClass('tw-git-toolbar')[0]).includes('4 个改动'));
   const toolbarNode = h.byClass('tw-git-toolbar')[0];
-  const toolbarButtons = [h.byText('全部暂存'), h.byText('全部取消暂存')]
-    .flat()
-    .filter((node) => h.contains(toolbarNode, node));
-  check('ready: batch stage/unstage buttons render', toolbarButtons.length === 2, toolbarButtons.length);
+  const toolbarButtons = h.descendants(toolbarNode, (node) => node.type === 'button').map((node) => h.text(node));
+  check(
+    'ready: the toolbar keeps only the global action that spans several groups',
+    toolbarButtons.join(',') === '全部暂存',
+    JSON.stringify(toolbarButtons),
+  );
+  // The bug this pins: 全部取消暂存 appeared in the toolbar AND in the staged group's
+  // header, because 已暂存 is the only unstageable group.
+  check('ready: no global batch label is duplicated by a group button', !h.text().includes('全部取消暂存'));
+  const headerBatch = h.byClass('tw-git-sectionhead').map((node) => h.text(node));
+  check(
+    'ready: each group header carries its own scoped batch',
+    headerBatch.some((label) => label.includes('已暂存') && label.includes('取消暂存') && !label.includes('全部')) &&
+      headerBatch.some((label) => label.includes('未暂存') && label.includes('暂存') && label.includes('放弃改动')),
+    JSON.stringify(headerBatch),
+  );
 
   const heads = h.byClass('tw-git-sectionhead').map((node) => h.text(node));
   check(
@@ -806,13 +818,15 @@ function postTo(harness, path) {
   );
   check('discard: the notice reports the discarded count', h.text().includes('已放弃 1 个文件的改动'));
 
-  h.click(h.byText('全部放弃')[0]);
+  const discardBatch = h.byClass('tw-git-batch').find((node) => h.text(node) === '放弃改动');
+  check('discard: the group header carries the discard batch', discardBatch !== undefined);
+  h.click(discardBatch);
   await h.settle();
   h.click(h.descendants(h.byClass('tw-git-dialog')[0], (node) => node.type === 'button')[1]);
   await h.settle();
   const discardAllCall = postTo(h, '/discard');
   check(
-    'discard: discard-all covers the unstaged tracked paths',
+    'discard: the group batch covers that group\'s tracked paths',
     discardAllCall !== undefined && discardAllCall.body.paths.join(',') === 'src/app.ts,README.md',
     JSON.stringify(discardAllCall && discardAllCall.body),
   );

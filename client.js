@@ -62,7 +62,6 @@ window.__ModuleLoader__.load({
       'group.untracked': '未跟踪',
       'action.stage': '暂存',
       'action.unstage': '取消暂存',
-      'action.unstageAll': '全部取消暂存',
       'action.close': '关闭差异',
       'commit.placeholder': '提交信息…',
       'commit.submit': '提交',
@@ -191,7 +190,6 @@ window.__ModuleLoader__.load({
       'group.untracked': 'Untracked',
       'action.stage': 'Stage',
       'action.unstage': 'Unstage',
-      'action.unstageAll': 'Unstage all',
       'action.close': 'Close the diff',
       'commit.placeholder': 'Commit message…',
       'commit.submit': 'Commit',
@@ -1146,10 +1144,10 @@ window.__ModuleLoader__.load({
         total,
         clean,
         canStageAll,
-        canUnstageAll,
         canDiscardAll,
+        stageAllGroups,
+        discardAllGroups,
         onStageAll,
-        onUnstageAll,
         onDiscardAll,
         onToggleDir,
         onSelect,
@@ -1174,21 +1172,17 @@ window.__ModuleLoader__.load({
               { className: 'tw-git-toolbar' },
               h('span', { className: 'tw-git-toolbartext' }, t('changes.total', { n: total })),
               h('span', { className: 'tw-git-spacer' }),
-              canUnstageAll
-                ? h(
-                    'button',
-                    { key: 'unstage', type: 'button', className: 'tw-git-ghost', disabled: busy !== null, onClick: onUnstageAll },
-                    t('action.unstageAll'),
-                  )
-                : null,
-              canStageAll
+              // A 全部… button appears only when it spans more than one group: with a
+              // single group it would just repeat that group's own button. The staged
+              // group is the only unstageable one, so a global unstage never renders.
+              canStageAll && stageAllGroups > 1
                 ? h(
                     'button',
                     { key: 'stage', type: 'button', className: 'tw-git-ghost', disabled: busy !== null, onClick: onStageAll },
                     t('action.stageAll'),
                   )
                 : null,
-              canDiscardAll
+              canDiscardAll && discardAllGroups > 1
                 ? h(
                     'button',
                     {
@@ -1898,12 +1892,20 @@ window.__ModuleLoader__.load({
       const { group, selectedKey, busy, folded, onToggleDir, onSelect, onStage, onUnstage, onDiscard, t } = props;
       const runs = useMemo(() => groupByDir(group.entries), [group.entries]);
       const paths = group.entries.map((entry) => entry.path);
+      // Scoped names on purpose: the toolbar's 全部… actions would otherwise read
+      // identically while covering a different set of files.
       const batch =
         group.action === 'stage'
-          ? { label: t('action.stageAll'), run: () => onStage(paths) }
+          ? { label: t('action.stage'), run: () => onStage(paths) }
           : group.action === 'unstage'
-            ? { label: t('action.unstageAll'), run: () => onUnstage(paths) }
+            ? { label: t('action.unstage'), run: () => onUnstage(paths) }
             : null;
+      // Only tracked, unstaged files can be restored; untracked ones are refused.
+      const discardPaths = group.entries
+        .filter((entry) => entry.side === 'worktree')
+        .map((entry) => entry.path);
+      const discardBatch =
+        discardPaths.length === 0 ? null : { label: t('op.discard'), run: () => onDiscard(discardPaths) };
       // A single root run needs no folder row: there is nothing to distinguish.
       const showDirs = runs.length > 1 || (runs.length === 1 && runs[0].dir !== '');
       const nodes = [
@@ -1918,6 +1920,19 @@ window.__ModuleLoader__.load({
                 'button',
                 { key: 'batch', type: 'button', className: 'tw-git-batch', disabled: busy, onClick: batch.run },
                 batch.label,
+              ),
+          discardBatch === null
+            ? null
+            : h(
+                'button',
+                {
+                  key: 'discard',
+                  type: 'button',
+                  className: 'tw-git-batch danger',
+                  disabled: busy,
+                  onClick: discardBatch.run,
+                },
+                discardBatch.label,
               ),
         ),
       ];
@@ -2742,15 +2757,27 @@ window.__ModuleLoader__.load({
             );
 
       const stageablePaths = [];
-      const unstageablePaths = [];
       const discardablePaths = [];
+      // How many groups each global action would span: one group means the group's own
+      // button already covers it, so the toolbar must stay out of the way.
+      let stageGroups = 0;
+      let discardGroups = 0;
       for (const group of groups) {
+        let stages = false;
+        let discards = false;
         for (const entry of group.entries) {
-          if (group.action === 'stage') stageablePaths.push(entry.path);
-          else if (group.action === 'unstage') unstageablePaths.push(entry.path);
+          if (group.action === 'stage') {
+            stageablePaths.push(entry.path);
+            stages = true;
+          }
           // Only tracked, unstaged files can be restored; untracked ones stay.
-          if (entry.side === 'worktree') discardablePaths.push(entry.path);
+          if (entry.side === 'worktree') {
+            discardablePaths.push(entry.path);
+            discards = true;
+          }
         }
+        if (stages) stageGroups += 1;
+        if (discards) discardGroups += 1;
       }
 
       let body = null;
@@ -2767,10 +2794,10 @@ window.__ModuleLoader__.load({
             total: status.changes.total,
             clean,
             canStageAll: stageablePaths.length > 0,
-            canUnstageAll: unstageablePaths.length > 0,
             canDiscardAll: discardablePaths.length > 0,
+            stageAllGroups: stageGroups,
+            discardAllGroups: discardGroups,
             onStageAll: () => stagePaths(stageablePaths),
-            onUnstageAll: () => unstagePaths(unstageablePaths),
             onDiscardAll: () => discardPaths(discardablePaths),
             onToggleDir: toggleDir,
             onSelect: (entry) => setSelection(entry),
@@ -2976,6 +3003,7 @@ window.__ModuleLoader__.load({
       '.tw-git-input::placeholder{color:var(--dsw-alias-label-secondary)}',
       '.tw-git-formrow{display:flex;align-items:center;justify-content:flex-end;gap:8px}',
       '.tw-git-ghost.danger{color:var(--dsw-alias-state-error-primary);border-color:color-mix(in srgb,var(--dsw-alias-state-error-primary) 50%,transparent)}',
+      '.tw-git-batch.danger{color:var(--dsw-alias-state-error-primary);border-color:color-mix(in srgb,var(--dsw-alias-state-error-primary) 45%,transparent)}',
       '.tw-git-ghost.danger:hover:not(:disabled){color:var(--dsw-alias-state-error-primary);border-color:var(--dsw-alias-state-error-primary)}',
       '.tw-git-fileact.danger{color:var(--dsw-alias-state-error-primary);border-color:color-mix(in srgb,var(--dsw-alias-state-error-primary) 45%,transparent)}',
       '.tw-git-fileact.danger:hover:not(:disabled){border-color:var(--dsw-alias-state-error-primary);color:var(--dsw-alias-state-error-primary)}',
