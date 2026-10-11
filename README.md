@@ -4,9 +4,9 @@
 
 <div align="center">
 
-[![平台](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-034ea1?style=flat-square)](#安装) [![USTC Tokenworks](https://img.shields.io/badge/USTC%20Tokenworks-Web%20%E6%8F%92%E4%BB%B6-4169e1?style=flat-square)](#安装) [![License: MIT](https://img.shields.io/badge/license-MIT-3DA66B?style=flat-square)](LICENSE)
+[![平台](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-034ea1?style=flat-square)](#从-git-安装) [![USTC Tokenworks](https://img.shields.io/badge/USTC%20Tokenworks-Web%20%E6%8F%92%E4%BB%B6-4169e1?style=flat-square)](#从-git-安装) [![License: MIT](https://img.shields.io/badge/license-MIT-3DA66B?style=flat-square)](LICENSE)
 
-[安装](#安装) · [用法](#用法) · [写操作](#写操作) · [配置](#配置) · [测试](#测试) · [问题反馈](https://github.com/charienustc/Tokenworks-git/issues/new)
+[安装](#从-git-安装) · [用法](#用法) · [写操作](#写操作) · [配置](#配置) · [测试](#测试) · [问题反馈](https://github.com/charienustc/Tokenworks-git/issues/new)
 
 </div>
 
@@ -27,17 +27,23 @@ USTC Tokenworks 的**会话右侧栏 Git 面板**：改动清单、统一 diff�
 
 面板不注册任何 agent 工具，也不依赖任何第三方库。
 
-## 安装
+## 从 Git 安装
 
 需要 **USTC Tokenworks**（Web 端）与 **git ≥ 2.23**（用到了 `git switch`）。
 
-把仓库链接丢给 USTC Tokenworks 里的 AI 助手，让它帮你装：
+USTC Tokenworks 内：**设置 → 插件 → 安装**，粘贴：
 
-`https://github.com/charienustc/Tokenworks-git`
+```
+https://git.ustc.edu.cn/Charien/tokenworks-git-panel.git
+```
 
-装好后在会话里打开：右侧栏 `+` → **Git**，或点会话标题栏上的 Git 图标。
+校外或连不上内网时，换成 `https://github.com/charienustc/Tokenworks-git.git`。
 
-> 改了插件代码要重新加载：`client.js` 刷新页面即可，`index.js` / `lib/git.js` 需要重启 USTC Tokenworks。
+安装后**彻底退出 USTC Tokenworks（托盘右键退出，关窗口不算）再重新打开**——新的 host 插件只在启动时加载。
+
+然后打开：右侧栏 `+` → **Git**，或点会话标题栏上的 Git 图标。
+
+> 日常改代码：`client.js` 刷新页面即可，`index.js` / `lib/git.js` 要按上面那样彻底退出再打开。
 
 ## 用法
 
