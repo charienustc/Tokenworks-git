@@ -1,16 +1,16 @@
 <p align="center">
-  <img src="docs/assets/banner.svg" width="100%" alt="DSH Git Panel — 会话右侧栏的可视化 Git">
+  <img src="docs/assets/banner.svg" width="100%" alt="USTC Tokenworks Git Panel — 会话右侧栏的可视化 Git">
 </p>
 
 <div align="center">
 
-[![平台](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-034ea1?style=flat-square)](#安装) [![DSH](https://img.shields.io/badge/DSH-Web%20%E6%8F%92%E4%BB%B6-4169e1?style=flat-square)](#安装) [![License: MIT](https://img.shields.io/badge/license-MIT-3DA66B?style=flat-square)](LICENSE)
+[![平台](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-034ea1?style=flat-square)](#安装) [![USTC Tokenworks](https://img.shields.io/badge/USTC%20Tokenworks-Web%20%E6%8F%92%E4%BB%B6-4169e1?style=flat-square)](#安装) [![License: MIT](https://img.shields.io/badge/license-MIT-3DA66B?style=flat-square)](LICENSE)
 
 [安装](#安装) · [用法](#用法) · [写操作](#写操作) · [安全边界](#安全边界) · [工作方式](#工作方式) · [测试](#测试) · [问题反馈](https://github.com/charienustc/Tokenworks-git/issues/new)
 
 </div>
 
-DSH（DeepSeek Harness）的**会话右侧栏 Git 面板**：改动清单、统一 diff、带泳道的提交图、分支与标签、远程同步，以及一整套受控的写操作——都在会话里就地完成，不用切到终端。
+USTC Tokenworks 的**会话右侧栏 Git 面板**：改动清单、统一 diff、带泳道的提交图、分支与标签、远程同步，以及一整套受控的写操作——都在会话里就地完成，不用切到终端。
 
 > [!NOTE]
 > 写操作是一张**固定的命令表**，不是命令通道。没有 `push --force`、没有 `branch -D`、没有 `checkout --force`、没有 `reset --hard`、没有 `rebase`，也不会删除未跟踪文件。会移动 HEAD 或丢弃内容的动作都先弹面板内确认框。**破坏性能力是"不提供"，不是"再问一次"。**
@@ -27,14 +27,14 @@ DSH（DeepSeek Harness）的**会话右侧栏 Git 面板**：改动清单、统�
 | ☁️ | **远程同步** | 获取（`fetch --all --prune`）、拉取（`pull --ff-only`）、推送（首次发布自动 `-u`） |
 | ⏪ | **撤销与重写** | 放弃改动、`revert`、`cherry-pick`、`reset --soft/--mixed`、检出任意提交（进游离 HEAD） |
 | 🔔 | **反馈** | 每个写操作后刷新状态并给通知条（成功 4 秒、失败 8 秒自动消失），取消确认框则一个请求都不发 |
-| 🌗 | **主题与语言** | 只用 `--dsw-alias-*` 主题 token，浅色/深色跟随 Harness；文案全部走 `ctx.locale`，中英双语 |
+| 🌗 | **主题与语言** | 只用 `--dsw-alias-*` 主题 token，浅色/深色跟随 USTC Tokenworks；文案全部走 `ctx.locale`，中英双语 |
 | 🙈 | **只给人看** | 面板不注册任何 agent 工具——它服务的是坐在会话前的人 |
-| 📦 | **零依赖** | `package.json` 没有任何 dependencies；浏览器侧只 `require('react')`，Host 侧只用 DSH 提供的服务 |
+| 📦 | **零依赖** | `package.json` 没有任何 dependencies；浏览器侧只 `require('react')`，Host 侧只用 USTC Tokenworks 提供的服务 |
 | 🔌 | **可卸载** | 每个注册都由 `ctx.effect` 持有，禁用插件即回收页签、标题栏按钮与样式表 |
 
 ## 安装
 
-1. 需要 **DSH**（Web 端）与 **git ≥ 2.23**（用到了 `git switch`）。
+1. 需要 **USTC Tokenworks**（Web 端）与 **git ≥ 2.23**（用到了 `git switch`）。
 2. 把本仓装成工作区插件（会写入当前 profile，需要批准）：
 
    ```
@@ -44,7 +44,7 @@ DSH（DeepSeek Harness）的**会话右侧栏 Git 面板**：改动清单、统�
 3. 在会话里打开：右侧栏 `+` → **Git**，或点会话标题栏上的 Git 图标。工作区不是 git 仓库时会明确提示。
 
 > [!TIP]
-> 改了插件代码要重新加载才对页面生效：Client 半（`client.js`）刷新页面即可（必要时重启 Harness 载入新一代模块），Host 半（`index.js` / `lib/git.js`）需要重启 Harness。
+> 改了插件代码要重新加载才对页面生效：Client 半（`client.js`）刷新页面即可（必要时重启 USTC Tokenworks 载入新一代模块），Host 半（`index.js` / `lib/git.js`）需要重启 USTC Tokenworks。
 
 ## 用法
 
@@ -134,7 +134,7 @@ sequenceDiagram
     C-->>U: 列表刷新 + 「已放弃 1 个文件的改动」
 ```
 
-选这条 Host/Client 配对方式（同源 HTTP + 纯 JS bundle），而不是 typert 的 `@Remote`，是因为代码生成产物对一个纯 JS 插件太重——这也是 `dsh-client-ui-open-in-app` 那一对的做法。
+选这条 Host/Client 配对方式（同源 HTTP + 纯 JS bundle），而不是 typert 的 `@Remote`，是因为代码生成产物对一个纯 JS 插件太重——这也是上游自带的 open-in-app 插件那一对的做法。
 
 ## 配置
 
@@ -184,4 +184,4 @@ pnpm test          # 或：node tools/smoke.mjs && node tools/client-smoke.mjs
 
 本仓代码采用 **MIT**，见 [LICENSE](LICENSE)。可自由使用、修改、分发，包括闭源商用，只需保留版权声明。
 
-本项目的实现全部自行完成，**不含任何第三方库**：Host 只使用 DSH 提供的 `ctx.subprocess`、`ctx.fs`、`ctx.webServer`、`ctx.connection` 与 `ctx.locale`；浏览器侧只 `require('react')`。
+本项目的实现全部自行完成，**不含任何第三方库**：Host 只使用 USTC Tokenworks 提供的 `ctx.subprocess`、`ctx.fs`、`ctx.webServer`、`ctx.connection` 与 `ctx.locale`；浏览器侧只 `require('react')`。
