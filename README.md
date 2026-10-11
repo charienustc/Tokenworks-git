@@ -130,7 +130,7 @@ https://git.ustc.edu.cn/Charien/tokenworks-git-panel.git
 pnpm test          # 或：node tools/smoke.mjs && node tools/client-smoke.mjs
 ```
 
-Host 68 条 + Client 123 条断言。前者对着临时仓库跑真实 git（含用本地裸仓库做远程同步的端到端），后者用微型 React 运行时渲染面板。
+Host 68 条 + Client 131 条断言。前者对着临时仓库跑真实 git（含用本地裸仓库做远程同步的端到端），后者用微型 React 运行时渲染面板。
 
 代码里没有平台专有分支，但**目前只在 Windows 上实测过**。受限沙箱里 git 的远程命令会因无法创建命名管道而显示 `SKIP`，不受限时真实执行。
 

@@ -1388,5 +1388,70 @@ function postTo(harness, path) {
   );
 }
 
+// ==============================================================================
+// Scenario: a write in the panel makes the composer chip re-read the branch
+// ==============================================================================
+{
+  const h = createHarness();
+  const Body = h.bodyComponent();
+  const Dock = h.captured.slots.find((entry) => entry.name === 'conversation.composer.dock').registered.component;
+  const sessions = (selector) => selector({ byId: { s1: { cwd: ROOT } } });
+  // Both surfaces mounted at once, the way the page really mounts them.
+  const Both = () =>
+    h.React.createElement(
+      h.React.Fragment,
+      null,
+      h.React.createElement(Body, {
+        sessionId: 's1',
+        t: h.t,
+        useSessions: sessions,
+        useTabInfo: () => ({ tab: { visible: false } }),
+      }),
+      h.React.createElement(Dock, { sessionId: 's1', t: h.t, useSessions: sessions }),
+    );
+  h.render.component = Both;
+  h.render.props = {};
+  h.render();
+  await h.settle();
+
+  const headCalls = () => h.fetchCalls.filter((call) => call.url.includes('/git-panel/head')).length;
+  check('chip: the chip reads the branch on mount', headCalls() === 1, headCalls());
+  check('chip: the chip names the current branch', h.byClass('tw-git-dockchip').length === 1);
+
+  const before = headCalls();
+  h.click(h.byText('暂存')[0]);
+  await h.settle();
+  check(
+    'chip: a panel write makes the chip re-read without waiting for its poll',
+    headCalls() > before,
+    `${String(before)} → ${String(headCalls())}`,
+  );
+
+  // No timer was advanced above, so the write - not the poll - is what refreshed it.
+  const afterWrite = headCalls();
+  h.advance(60000);
+  await h.settle();
+  check(
+    'chip: the poll still runs as a backstop',
+    headCalls() > afterWrite,
+    `${String(afterWrite)} → ${String(headCalls())}`,
+  );
+
+  // The reverse direction: switching from the chip must refresh the panel too.
+  const statusCalls = () => h.fetchCalls.filter((call) => call.url.includes('/git-panel/status')).length;
+  h.click(h.byClass('tw-git-dockchip')[0]);
+  await h.settle();
+  h.click(h.byClass('tw-git-dockrow').find((row) => h.text(row).includes('feature')));
+  await h.settle();
+  const beforeSwitch = statusCalls();
+  h.click(h.byText('切换')[0]);
+  await h.settle();
+  check(
+    'chip: switching from the chip refreshes the panel as well',
+    statusCalls() > beforeSwitch,
+    `${String(beforeSwitch)} → ${String(statusCalls())}`,
+  );
+}
+
 console.log(failures === 0 ? '\nALL PASS' : `\n${String(failures)} FAILURE(S)`);
 process.exit(failures === 0 ? 0 : 1);

@@ -29,8 +29,8 @@ window.__ModuleLoader__.load({
     const API = '/git-panel';
     /** Poll cadence while the tab is on screen. */
     const REFRESH_MS = 5000;
-    /** Slower cadence for the composer branch chip, which is always on screen. */
-    const DOCK_REFRESH_MS = 10000;
+    /** Backstop cadence for the composer branch chip; writes announce themselves. */
+    const DOCK_REFRESH_MS = 5000;
 
     /** Simplified Chinese dictionary and key-set source of truth. */
     const zh = {
@@ -308,6 +308,17 @@ window.__ModuleLoader__.load({
         },
       };
     })();
+
+    /**
+     * Repository-change notifications. The panel and the composer chip live in
+     * separate slot trees, so a write in one is invisible to the other: without this
+     * the chip would keep naming the previous branch until its next poll, and the
+     * panel would not notice a switch made from the chip.
+     */
+    const repoListeners = new Set();
+    function notifyRepoChanged() {
+      for (const listener of repoListeners) listener();
+    }
 
     /** React 18's external-store hook, with a subscribe-and-force fallback. */
     const useExternalStore =
@@ -2035,6 +2046,15 @@ window.__ModuleLoader__.load({
         };
       }, [refresh]);
 
+      // A write anywhere else in this repository renames or re-points the branch, so
+      // re-read immediately instead of waiting for the poll above.
+      useEffect(() => {
+        repoListeners.add(refresh);
+        return () => {
+          repoListeners.delete(refresh);
+        };
+      }, [refresh]);
+
       const openMenu = useCallback(async () => {
         if (typeof cwd !== 'string' || cwd === '') return;
         setMenu({ phase: 'loading', refs: [], error: null, pending: null, busy: false });
@@ -2066,6 +2086,7 @@ window.__ModuleLoader__.load({
           await api.checkout(cwd, branch, false);
           setMenu(null);
           await refresh();
+          notifyRepoChanged();
         } catch (error) {
           setMenu({ ...menu, busy: false, error: String((error && error.message) || error) });
         }
@@ -2341,6 +2362,7 @@ window.__ModuleLoader__.load({
             await refresh({ announce: false });
             if (view === 'branches') await loadBranches();
             if (view === 'history') await loadHistory();
+            notifyRepoChanged();
             if (done !== undefined) setNotice({ kind: 'ok', text: done });
           } catch (error) {
             setNotice({ kind: 'error', text: String((error && error.message) || error) });
@@ -2351,9 +2373,20 @@ window.__ModuleLoader__.load({
         [loadBranches, loadHistory, refresh, view],
       );
 
+      // A branch switch made from the composer chip changes this repository too, and
+      // that chip is a separate component tree, so it announces itself the same way.
+      useEffect(() => {
+        const listener = () => {
+          void refresh({ announce: false });
+        };
+        repoListeners.add(listener);
+        return () => {
+          repoListeners.delete(listener);
+        };
+      }, [refresh]);
+
       /** Follow a path that changes section, so an open diff stays truthful. */
-      const follow = useCallback((paths, side, prefix) => {
-        setSelection((current) =>
+      const follow = useCallback((paths, side, prefix) => {        setSelection((current) =>
           current !== null && paths.includes(current.path)
             ? { ...current, side, key: `${prefix}:${current.path}` }
             : current,
