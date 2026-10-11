@@ -99,6 +99,62 @@ window.__ModuleLoader__.load({
       'commit.shortcut': 'Ctrl/⌘ + Enter',
       'history.count': '{n} 次提交',
       'branches.count': '{n} 个引用',
+      'confirm.cancel': '取消',
+      'confirm.discardDetail': '这会丢弃 {n} 个文件里未提交的改动，无法恢复。',
+      'confirm.checkoutDetail': '切换会改动工作区；有未提交改动时 git 可能拒绝。',
+      'confirm.checkoutCommitDetail': '这会进入游离 HEAD 状态。',
+      'confirm.deleteBranchDetail': '面板只做安全删除：未合并的分支会被 git 拒绝。',
+      'confirm.deleteTagDetail': '标签会从本地删除。',
+      'confirm.pullDetail': '只做快进式拉取，不会创建合并提交。',
+      'confirm.pushDetail': '把本地提交推送到远端；面板不会强制推送。',
+      'confirm.resetSoftDetail': 'HEAD 移到该提交，改动保留在暂存区。',
+      'confirm.resetMixedDetail': 'HEAD 移到该提交，改动保留但不再暂存。',
+      'confirm.revertDetail': '会创建一个反向提交。',
+      'confirm.cherryPickDetail': '把这个提交应用到当前分支。',
+      'confirm.mergeDetail': '把 {name} 合并进当前分支。',
+      'op.branchCreate': '新建分支',
+      'op.checkout': '切换分支',
+      'op.checkoutCommit': '检出提交',
+      'op.branchDelete': '删除分支',
+      'op.tagCreate': '新建标签',
+      'op.tagDelete': '删除标签',
+      'op.discard': '放弃改动',
+      'op.discardAll': '放弃全部改动',
+      'op.fetch': '获取',
+      'op.pull': '拉取',
+      'op.push': '推送',
+      'op.resetSoft': '软重置',
+      'op.resetMixed': '混合重置',
+      'op.revert': '还原提交',
+      'op.cherryPick': '拣选提交',
+      'op.merge': '合并',
+      'action.switch': '切换',
+      'action.delete': '删除',
+      'action.discard': '放弃',
+      'action.discardAll': '全部放弃',
+      'action.revert': '还原',
+      'action.cherryPick': '拣选',
+      'action.checkout': '检出',
+      'action.merge': '合并',
+      'action.create': '创建',
+      'branch.namePlaceholder': '分支名，如 feature/login',
+      'branch.startPlaceholder': '起点（留空 = 当前 HEAD）',
+      'tag.namePlaceholder': '标签名，如 v1.0.0',
+      'tag.revPlaceholder': '指向（留空 = 当前 HEAD）',
+      'remotes.title': '远程仓库',
+      'notice.branchCreated': '已创建并切换到 {name}',
+      'notice.switched': '已切换到 {name}',
+      'notice.branchDeleted': '已删除分支 {name}',
+      'notice.tagCreated': '已创建标签 {name}',
+      'notice.tagDeleted': '已删除标签 {name}',
+      'notice.discarded': '已放弃 {n} 个文件的改动',
+      'notice.fetched': '已获取远端更新',
+      'notice.pulled': '已拉取',
+      'notice.pushed': '已推送',
+      'notice.reset': '已重置到 {rev}',
+      'notice.reverted': '已还原提交 {rev}',
+      'notice.cherryPicked': '已拣选提交 {rev}',
+      'notice.merged': '已合并 {name}',
       'common.error': '出错了',
     };
 
@@ -171,6 +227,62 @@ window.__ModuleLoader__.load({
       'commit.shortcut': 'Ctrl/⌘ + Enter',
       'history.count': '{n} commit(s)',
       'branches.count': '{n} ref(s)',
+      'confirm.cancel': 'Cancel',
+      'confirm.discardDetail': 'This discards uncommitted changes in {n} file(s) and cannot be undone.',
+      'confirm.checkoutDetail': 'Switching changes the working tree; git may refuse while changes are uncommitted.',
+      'confirm.checkoutCommitDetail': 'This leaves HEAD detached.',
+      'confirm.deleteBranchDetail': 'Safe delete only: git refuses a branch that is not merged.',
+      'confirm.deleteTagDetail': 'The tag is removed from this repository.',
+      'confirm.pullDetail': 'Fast-forward only; no merge commit is created.',
+      'confirm.pushDetail': 'Publishes local commits; the panel never force pushes.',
+      'confirm.resetSoftDetail': 'HEAD moves to that commit; the changes stay staged.',
+      'confirm.resetMixedDetail': 'HEAD moves to that commit; the changes stay unstaged.',
+      'confirm.revertDetail': 'Records the inverse as a new commit.',
+      'confirm.cherryPickDetail': 'Applies that commit onto the current branch.',
+      'confirm.mergeDetail': 'Merges {name} into the current branch.',
+      'op.branchCreate': 'New branch',
+      'op.checkout': 'Switch branch',
+      'op.checkoutCommit': 'Check out commit',
+      'op.branchDelete': 'Delete branch',
+      'op.tagCreate': 'New tag',
+      'op.tagDelete': 'Delete tag',
+      'op.discard': 'Discard changes',
+      'op.discardAll': 'Discard all changes',
+      'op.fetch': 'Fetch',
+      'op.pull': 'Pull',
+      'op.push': 'Push',
+      'op.resetSoft': 'Soft reset',
+      'op.resetMixed': 'Mixed reset',
+      'op.revert': 'Revert commit',
+      'op.cherryPick': 'Cherry-pick',
+      'op.merge': 'Merge',
+      'action.switch': 'Switch',
+      'action.delete': 'Delete',
+      'action.discard': 'Discard',
+      'action.discardAll': 'Discard all',
+      'action.revert': 'Revert',
+      'action.cherryPick': 'Cherry-pick',
+      'action.checkout': 'Check out',
+      'action.merge': 'Merge',
+      'action.create': 'Create',
+      'branch.namePlaceholder': 'Branch name, e.g. feature/login',
+      'branch.startPlaceholder': 'Start point (empty = HEAD)',
+      'tag.namePlaceholder': 'Tag name, e.g. v1.0.0',
+      'tag.revPlaceholder': 'Target (empty = HEAD)',
+      'remotes.title': 'Remotes',
+      'notice.branchCreated': 'Created and switched to {name}',
+      'notice.switched': 'Switched to {name}',
+      'notice.branchDeleted': 'Deleted branch {name}',
+      'notice.tagCreated': 'Created tag {name}',
+      'notice.tagDeleted': 'Deleted tag {name}',
+      'notice.discarded': 'Discarded changes in {n} file(s)',
+      'notice.fetched': 'Fetched remote updates',
+      'notice.pulled': 'Pulled',
+      'notice.pushed': 'Pushed',
+      'notice.reset': 'Reset to {rev}',
+      'notice.reverted': 'Reverted {rev}',
+      'notice.cherryPicked': 'Cherry-picked {rev}',
+      'notice.merged': 'Merged {name}',
       'common.error': 'Something went wrong',
     };
 
@@ -237,6 +349,14 @@ window.__ModuleLoader__.load({
         .map(([key, value]) => `${key}=${encodeURIComponent(String(value))}`)
         .join('&');
 
+    /** One JSON POST against the Host half. */
+    const post = (path, body) =>
+      request(path, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
     const api = {
       status: (root) => request(`${API}/status?${query({ root })}`),
       diff: (root, side, path) => request(`${API}/diff?${query({ root, side, path })}`),
@@ -244,24 +364,18 @@ window.__ModuleLoader__.load({
         request(`${API}/log?${query({ root, limit: options.limit, all: options.all ? 1 : 0 })}`),
       commitDetail: (root, rev) => request(`${API}/commit?${query({ root, rev })}`),
       branches: (root) => request(`${API}/branches?${query({ root })}`),
-      stage: (root, paths) =>
-        request(`${API}/stage`, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ root, paths }),
-        }),
-      unstage: (root, paths) =>
-        request(`${API}/unstage`, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ root, paths }),
-        }),
-      commit: (root, message) =>
-        request(`${API}/commit`, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ root, message }),
-        }),
+      remotes: (root) => request(`${API}/remotes?${query({ root })}`),
+      stage: (root, paths) => post(`${API}/stage`, { root, paths }),
+      unstage: (root, paths) => post(`${API}/unstage`, { root, paths }),
+      commit: (root, message) => post(`${API}/commit`, { root, message }),
+      createBranch: (root, name, start) => post(`${API}/branch`, { root, name, start }),
+      checkout: (root, ref, detach) => post(`${API}/checkout`, { root, ref, detach }),
+      deleteBranch: (root, name) => post(`${API}/branch-delete`, { root, name }),
+      createTag: (root, name, rev) => post(`${API}/tag`, { root, name, rev }),
+      deleteTag: (root, name) => post(`${API}/tag-delete`, { root, name }),
+      sync: (root, action, extra) => post(`${API}/sync`, { root, action, ...(extra ?? {}) }),
+      discard: (root, paths) => post(`${API}/discard`, { root, paths }),
+      undo: (root, action, rev, mode) => post(`${API}/undo`, { root, action, rev, mode }),
     };
 
     /** Split a repository-relative path into its display name and directory. */
@@ -975,12 +1089,15 @@ window.__ModuleLoader__.load({
         clean,
         canStageAll,
         canUnstageAll,
+        canDiscardAll,
         onStageAll,
         onUnstageAll,
+        onDiscardAll,
         onToggleDir,
         onSelect,
         onStage,
         onUnstage,
+        onDiscard,
         onClose,
         t,
       } = props;
@@ -1013,6 +1130,19 @@ window.__ModuleLoader__.load({
                     t('action.stageAll'),
                   )
                 : null,
+              canDiscardAll
+                ? h(
+                    'button',
+                    {
+                      key: 'discard',
+                      type: 'button',
+                      className: 'dsh-git-ghost danger',
+                      disabled: busy !== null,
+                      onClick: onDiscardAll,
+                    },
+                    t('action.discardAll'),
+                  )
+                : null,
             ),
         groups.map((group) =>
           h(ChangeGroup, {
@@ -1025,6 +1155,7 @@ window.__ModuleLoader__.load({
             onSelect,
             onStage,
             onUnstage,
+            onDiscard,
             t,
           }),
         ),
@@ -1075,7 +1206,21 @@ window.__ModuleLoader__.load({
 
     /** Commit history: the DAG list, or the detail of one opened commit. */
     function HistoryView(props) {
-      const { history, detail, allRefs, onToggleAll, onOpen, onBack, t } = props;
+      const {
+        history,
+        detail,
+        allRefs,
+        busy,
+        onToggleAll,
+        onOpen,
+        onBack,
+        onSync,
+        onRevert,
+        onCherryPick,
+        onCheckoutCommit,
+        onReset,
+        t,
+      } = props;
       if (detail.phase !== 'idle') {
         const commit = detail.commit;
         const files = commit === null ? [] : parseFilePatch(commit.patch);
@@ -1128,6 +1273,60 @@ window.__ModuleLoader__.load({
                       { className: 'dsh-git-metablock' },
                       h('div', { className: 'dsh-git-hint' }, `${commit.author} · ${commit.date}`),
                       h('div', { className: 'dsh-git-message' }, commit.message),
+                      h(
+                        'div',
+                        { className: 'dsh-git-actions' },
+                        h(
+                          'button',
+                          {
+                            type: 'button',
+                            className: 'dsh-git-ghost',
+                            disabled: busy !== null,
+                            onClick: () => onCherryPick(commit.hash),
+                          },
+                          t('action.cherryPick'),
+                        ),
+                        h(
+                          'button',
+                          {
+                            type: 'button',
+                            className: 'dsh-git-ghost',
+                            disabled: busy !== null,
+                            onClick: () => onRevert(commit.hash),
+                          },
+                          t('action.revert'),
+                        ),
+                        h(
+                          'button',
+                          {
+                            type: 'button',
+                            className: 'dsh-git-ghost',
+                            disabled: busy !== null,
+                            onClick: () => onCheckoutCommit(commit.hash),
+                          },
+                          t('action.checkout'),
+                        ),
+                        h(
+                          'button',
+                          {
+                            type: 'button',
+                            className: 'dsh-git-ghost',
+                            disabled: busy !== null,
+                            onClick: () => onReset(commit.hash, 'soft'),
+                          },
+                          t('op.resetSoft'),
+                        ),
+                        h(
+                          'button',
+                          {
+                            type: 'button',
+                            className: 'dsh-git-ghost',
+                            disabled: busy !== null,
+                            onClick: () => onReset(commit.hash, 'mixed'),
+                          },
+                          t('op.resetMixed'),
+                        ),
+                      ),
                     ),
                     h(
                       'div',
@@ -1187,6 +1386,36 @@ window.__ModuleLoader__.load({
           { className: 'dsh-git-toolbar' },
           h('span', { className: 'dsh-git-toolbartext' }, t('history.count', { n: commits.length })),
           h('span', { className: 'dsh-git-spacer' }),
+          h(
+            'button',
+            {
+              type: 'button',
+              className: 'dsh-git-ghost',
+              disabled: busy !== null,
+              onClick: () => onSync('fetch'),
+            },
+            t('op.fetch'),
+          ),
+          h(
+            'button',
+            {
+              type: 'button',
+              className: 'dsh-git-ghost',
+              disabled: busy !== null,
+              onClick: () => onSync('pull'),
+            },
+            t('op.pull'),
+          ),
+          h(
+            'button',
+            {
+              type: 'button',
+              className: 'dsh-git-ghost',
+              disabled: busy !== null,
+              onClick: () => onSync('push'),
+            },
+            t('op.push'),
+          ),
           h(
             'button',
             {
@@ -1262,14 +1491,180 @@ window.__ModuleLoader__.load({
     }
 
     /** Local branches, remote-tracking branches and tags. */
+    /** Modal confirmation for the operations that move HEAD or discard work. */
+    function ConfirmDialog(props) {
+      const { request, busy, onCancel, onConfirm, t } = props;
+      return h(
+        'div',
+        { className: 'dsh-git-overlay' },
+        h(
+          'div',
+          { className: 'dsh-git-dialog', role: 'dialog', 'aria-modal': 'true' },
+          h('p', { className: 'dsh-git-dialogtitle' }, request.title),
+          request.detail === undefined || request.detail === null
+            ? null
+            : h('p', { className: 'dsh-git-dialogtext' }, request.detail),
+          h(
+            'div',
+            { className: 'dsh-git-dialogrow' },
+            h(
+              'button',
+              { type: 'button', className: 'dsh-git-ghost', onClick: onCancel },
+              t('confirm.cancel'),
+            ),
+            h(
+              'button',
+              {
+                type: 'button',
+                className: request.danger === true ? 'dsh-git-danger' : 'dsh-git-primary',
+                disabled: busy !== null,
+                onClick: onConfirm,
+              },
+              request.label,
+            ),
+          ),
+        ),
+      );
+    }
+
+    /** Branches, tags and remotes, with the actions each row can run. */
     function BranchesView(props) {
-      const { branches, t } = props;
+      const {
+        branches,
+        remotes,
+        busy,
+        onCheckout,
+        onMerge,
+        onDeleteBranch,
+        onCreateBranch,
+        onCreateTag,
+        onDeleteTag,
+        t,
+      } = props;
+      /** The inline create form: null when closed, otherwise its draft. */
+      const [form, setForm] = useState(null);
       const refs = branches.refs ?? [];
       const groups = [
         { id: 'local', title: t('branches.local'), entries: refs.filter((ref) => ref.kind === 'local') },
         { id: 'remote', title: t('branches.remote'), entries: refs.filter((ref) => ref.kind === 'remote') },
         { id: 'tag', title: t('branches.tag'), entries: refs.filter((ref) => ref.kind === 'tag') },
       ].filter((group) => group.entries.length > 0);
+
+      const submitForm = () => {
+        if (form === null || form.name.trim() === '') return;
+        if (form.kind === 'branch') onCreateBranch(form.name.trim(), form.start.trim());
+        else onCreateTag(form.name.trim(), form.start.trim());
+        setForm(null);
+      };
+      const onFormKey = (event) => {
+        if (event.key === 'Enter') submitForm();
+      };
+      const namePlaceholder = form === null || form.kind === 'branch' ? t('branch.namePlaceholder') : t('tag.namePlaceholder');
+      const startPlaceholder = form === null || form.kind === 'branch' ? t('branch.startPlaceholder') : t('tag.revPlaceholder');
+      const formNode =
+        form === null
+          ? null
+          : h(
+              'div',
+              { className: 'dsh-git-form' },
+              h('input', {
+                className: 'dsh-git-input',
+                value: form.name,
+                placeholder: namePlaceholder,
+                'aria-label': namePlaceholder,
+                spellCheck: false,
+                onChange: (event) => setForm({ ...form, name: event.target.value }),
+                onKeyDown: onFormKey,
+              }),
+              h('input', {
+                className: 'dsh-git-input',
+                value: form.start,
+                placeholder: startPlaceholder,
+                'aria-label': startPlaceholder,
+                spellCheck: false,
+                onChange: (event) => setForm({ ...form, start: event.target.value }),
+                onKeyDown: onFormKey,
+              }),
+              h(
+                'div',
+                { className: 'dsh-git-formrow' },
+                h(
+                  'button',
+                  { type: 'button', className: 'dsh-git-ghost', onClick: () => setForm(null) },
+                  t('confirm.cancel'),
+                ),
+                h(
+                  'button',
+                  {
+                    type: 'button',
+                    className: 'dsh-git-primary',
+                    disabled: busy !== null || form.name.trim() === '',
+                    onClick: submitForm,
+                  },
+                  t('action.create'),
+                ),
+              ),
+            );
+
+      /** The action cluster one row carries, by ref kind. */
+      const rowActions = (group, ref) => {
+        const parts = [];
+        if (group.id === 'local' && ref.head !== true) {
+          parts.push(
+            h(
+              'button',
+              {
+                key: 'switch',
+                type: 'button',
+                className: 'dsh-git-rowact',
+                disabled: busy !== null,
+                onClick: () => onCheckout(ref.name),
+              },
+              t('action.switch'),
+            ),
+            h(
+              'button',
+              {
+                key: 'merge',
+                type: 'button',
+                className: 'dsh-git-rowact',
+                disabled: busy !== null,
+                onClick: () => onMerge(ref.name),
+              },
+              t('action.merge'),
+            ),
+            h(
+              'button',
+              {
+                key: 'delete',
+                type: 'button',
+                className: 'dsh-git-rowact',
+                disabled: busy !== null,
+                onClick: () => onDeleteBranch(ref.name),
+              },
+              t('action.delete'),
+            ),
+          );
+        }
+        if (group.id === 'tag') {
+          parts.push(
+            h(
+              'button',
+              {
+                key: 'delete',
+                type: 'button',
+                className: 'dsh-git-rowact',
+                disabled: busy !== null,
+                onClick: () => onDeleteTag(ref.name),
+              },
+              t('action.delete'),
+            ),
+          );
+        }
+        return parts;
+      };
+
+      const remoteNames = remotes ?? [];
       return h(
         'div',
         { className: 'dsh-git-body' },
@@ -1277,7 +1672,29 @@ window.__ModuleLoader__.load({
           'div',
           { className: 'dsh-git-toolbar' },
           h('span', { className: 'dsh-git-toolbartext' }, t('branches.count', { n: refs.length })),
+          h('span', { className: 'dsh-git-spacer' }),
+          h(
+            'button',
+            {
+              type: 'button',
+              className: 'dsh-git-ghost',
+              disabled: busy !== null,
+              onClick: () => setForm({ kind: 'branch', name: '', start: '' }),
+            },
+            t('op.branchCreate'),
+          ),
+          h(
+            'button',
+            {
+              type: 'button',
+              className: 'dsh-git-ghost',
+              disabled: busy !== null,
+              onClick: () => setForm({ kind: 'tag', name: '', start: '' }),
+            },
+            t('op.tagCreate'),
+          ),
         ),
+        formNode,
         h(
           'div',
           { className: 'dsh-git-scroll' },
@@ -1285,41 +1702,65 @@ window.__ModuleLoader__.load({
             ? h('p', { className: 'dsh-git-note' }, t('state.loading'))
             : branches.phase === 'error'
               ? h('p', { className: 'dsh-git-note error' }, String(branches.error.message))
-              : groups.length === 0
-                ? h(
-                    'div',
-                    { className: 'dsh-git-state' },
-                    h('p', { className: 'dsh-git-statetitle' }, t('branches.empty')),
-                  )
-                : groups.map((group) =>
-                    h(
-                      React.Fragment,
-                      { key: group.id },
-                      h(
+              : h(
+                  React.Fragment,
+                  null,
+                  groups.length === 0
+                    ? h(
                         'div',
-                        { className: 'dsh-git-sectionhead' },
-                        h('span', { className: 'dsh-git-sectiontitle' }, group.title),
-                        h('span', { className: 'dsh-git-count' }, group.entries.length),
-                      ),
-                      ...group.entries.map((ref) =>
+                        { className: 'dsh-git-state' },
+                        h('p', { className: 'dsh-git-statetitle' }, t('branches.empty')),
+                      )
+                    : groups.map((group) =>
                         h(
-                          'div',
-                          { key: `${group.id}:${ref.name}`, className: 'dsh-git-row' },
-                          h('span', { className: 'dsh-git-filename', title: ref.name }, ref.name),
-                          ref.head
-                            ? h('span', { className: 'dsh-git-ref head' }, t('branches.current'))
-                            : null,
-                          h('span', { className: 'dsh-git-spacer' }),
-                          ref.track === null || ref.track === undefined
-                            ? null
-                            : h('span', { className: 'dsh-git-hint' }, ref.track),
-                          ref.upstream === null || ref.upstream === undefined
-                            ? null
-                            : h('span', { className: 'dsh-git-dirname' }, `→ ${ref.upstream}`),
+                          React.Fragment,
+                          { key: group.id },
+                          h(
+                            'div',
+                            { className: 'dsh-git-sectionhead' },
+                            h('span', { className: 'dsh-git-sectiontitle' }, group.title),
+                            h('span', { className: 'dsh-git-count' }, group.entries.length),
+                          ),
+                          ...group.entries.map((ref) =>
+                            h(
+                              'div',
+                              { key: `${group.id}:${ref.name}`, className: 'dsh-git-row' },
+                              h('span', { className: 'dsh-git-filename', title: ref.name }, ref.name),
+                              ref.head
+                                ? h('span', { className: 'dsh-git-ref head' }, t('branches.current'))
+                                : null,
+                              h('span', { className: 'dsh-git-spacer' }),
+                              ref.track === null || ref.track === undefined
+                                ? null
+                                : h('span', { className: 'dsh-git-hint' }, ref.track),
+                              ref.upstream === null || ref.upstream === undefined
+                                ? null
+                                : h('span', { className: 'dsh-git-dirname' }, `→ ${ref.upstream}`),
+                              ...rowActions(group, ref),
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ),
+                  remoteNames.length === 0
+                    ? null
+                    : h(
+                        React.Fragment,
+                        null,
+                        h(
+                          'div',
+                          { className: 'dsh-git-sectionhead' },
+                          h('span', { className: 'dsh-git-sectiontitle' }, t('remotes.title')),
+                          h('span', { className: 'dsh-git-count' }, remoteNames.length),
+                        ),
+                        ...remoteNames.map((name) =>
+                          h(
+                            'div',
+                            { key: `remote:${name}`, className: 'dsh-git-row' },
+                            h('span', { className: 'dsh-git-filename' }, name),
+                          ),
+                        ),
+                      ),
+                ),
         ),
       );
     }
@@ -1336,7 +1777,7 @@ window.__ModuleLoader__.load({
 
     /** One section of the change list: a title, its batch action, and its files. */
     function ChangeGroup(props) {
-      const { group, selectedKey, busy, folded, onToggleDir, onSelect, onStage, onUnstage, t } = props;
+      const { group, selectedKey, busy, folded, onToggleDir, onSelect, onStage, onUnstage, onDiscard, t } = props;
       const runs = useMemo(() => groupByDir(group.entries), [group.entries]);
       const paths = group.entries.map((entry) => entry.path);
       const batch =
@@ -1423,6 +1864,21 @@ window.__ModuleLoader__.load({
                     },
                     action.label,
                   ),
+              // Untracked files are never deleted, so discard is not offered there.
+              entry.side === 'worktree' && typeof onDiscard === 'function'
+                ? h(
+                    'button',
+                    {
+                      type: 'button',
+                      className: 'dsh-git-fileact danger',
+                      title: t('action.discard'),
+                      'aria-label': t('action.discard'),
+                      disabled: busy,
+                      onClick: () => onDiscard([entry.path]),
+                    },
+                    t('action.discard'),
+                  )
+                : null,
             ),
           );
         }
@@ -1453,6 +1909,10 @@ window.__ModuleLoader__.load({
       const [notice, setNotice] = useState(null);
       /** Directory rows the user folded shut, keyed `group:dir`. */
       const [folded, setFolded] = useState(() => new Set());
+      /** The operation waiting for confirmation, or null when none is pending. */
+      const [confirm, setConfirm] = useState(null);
+      /** The configured remotes: the default target when publishing a branch. */
+      const [remotes, setRemotes] = useState([]);
 
       const root = state.status !== undefined && state.status.repo === true ? state.status.root : cwd;
       /** Primitive readiness flag: polling publishes a new status object every tick. */
@@ -1537,23 +1997,40 @@ window.__ModuleLoader__.load({
         return undefined;
       }, [view, ready, loadHistory]);
 
-      /** Load branches when their tab is shown. */
+      /** Load the ref list: on tab entry, and again after any ref-changing write. */
+      const loadBranches = useCallback(async () => {
+        if (root === undefined || root === null) return;
+        setBranches((old) => ({ ...old, phase: 'loading' }));
+        try {
+          const payload = await api.branches(root);
+          setBranches({ phase: 'ready', refs: payload.refs });
+        } catch (error) {
+          setBranches({ phase: 'error', refs: [], error });
+        }
+      }, [root]);
+
       useEffect(() => {
         if (view !== 'branches' || !ready) return undefined;
+        loadBranches();
+        return undefined;
+      }, [view, ready, loadBranches]);
+
+      /** Load the configured remotes once the repository is known. */
+      useEffect(() => {
+        if (!ready || root === undefined || root === null) return undefined;
         let live = true;
-        setBranches({ phase: 'loading', refs: [] });
         api
-          .branches(root)
+          .remotes(root)
           .then((payload) => {
-            if (live) setBranches({ phase: 'ready', refs: payload.refs });
+            if (live) setRemotes(payload.remotes ?? []);
           })
-          .catch((error) => {
-            if (live) setBranches({ phase: 'error', refs: [], error });
+          .catch(() => {
+            if (live) setRemotes([]);
           });
         return () => {
           live = false;
         };
-      }, [view, ready, root]);
+      }, [ready, root]);
 
       /** Open one commit's detail. */
       const openCommit = useCallback(
@@ -1577,6 +2054,8 @@ window.__ModuleLoader__.load({
           try {
             await operation();
             await refresh({ announce: false });
+            if (view === 'branches') await loadBranches();
+            if (view === 'history') await loadHistory();
             if (done !== undefined) setNotice({ kind: 'ok', text: done });
           } catch (error) {
             setNotice({ kind: 'error', text: String((error && error.message) || error) });
@@ -1584,7 +2063,7 @@ window.__ModuleLoader__.load({
             setBusy(null);
           }
         },
-        [refresh],
+        [loadBranches, loadHistory, refresh, view],
       );
 
       /** Follow a path that changes section, so an open diff stays truthful. */
@@ -1650,6 +2129,182 @@ window.__ModuleLoader__.load({
           setBusy(null);
         }
       }, [loadHistory, message, refresh, root, t, view]);
+
+      /** Queue an operation behind the confirmation dialog. */
+      const ask = useCallback((request) => setConfirm(request), []);
+
+      /** Run the queued operation, then close the dialog. */
+      const runConfirmed = useCallback(async () => {
+        const request = confirm;
+        if (request === null) return;
+        setConfirm(null);
+        await write(request.kind ?? 'op', request.run, request.done);
+      }, [confirm, write]);
+
+      const switchBranch = useCallback(
+        (name) =>
+          ask({
+            title: t('op.checkout'),
+            detail: t('confirm.checkoutDetail'),
+            label: t('action.switch'),
+            run: () => api.checkout(root, name, false),
+            done: t('notice.switched', { name }),
+          }),
+        [ask, root, t],
+      );
+
+      const checkoutCommit = useCallback(
+        (hash) =>
+          ask({
+            title: t('op.checkoutCommit'),
+            detail: t('confirm.checkoutCommitDetail'),
+            label: t('action.checkout'),
+            run: () => api.checkout(root, hash, true),
+            done: t('notice.switched', { name: hash.slice(0, 7) }),
+          }),
+        [ask, root, t],
+      );
+
+      // Creating a branch is not destructive, so it runs without a prompt.
+      const createBranch = useCallback(
+        (name, start) =>
+          write(
+            'branch',
+            () => api.createBranch(root, name, start === '' ? null : start),
+            t('notice.branchCreated', { name }),
+          ),
+        [root, t, write],
+      );
+
+      const deleteBranch = useCallback(
+        (name) =>
+          ask({
+            title: t('op.branchDelete'),
+            detail: t('confirm.deleteBranchDetail'),
+            label: t('action.delete'),
+            danger: true,
+            run: () => api.deleteBranch(root, name),
+            done: t('notice.branchDeleted', { name }),
+          }),
+        [ask, root, t],
+      );
+
+      const createTag = useCallback(
+        (name, rev) =>
+          write(
+            'tag',
+            () => api.createTag(root, name, rev === '' ? null : rev),
+            t('notice.tagCreated', { name }),
+          ),
+        [root, t, write],
+      );
+
+      const deleteTag = useCallback(
+        (name) =>
+          ask({
+            title: t('op.tagDelete'),
+            detail: t('confirm.deleteTagDetail'),
+            label: t('action.delete'),
+            danger: true,
+            run: () => api.deleteTag(root, name),
+            done: t('notice.tagDeleted', { name }),
+          }),
+        [ask, root, t],
+      );
+
+      const discardPaths = useCallback(
+        (paths) => {
+          if (paths.length === 0) return;
+          ask({
+            title: t('op.discard'),
+            detail: t('confirm.discardDetail', { n: paths.length }),
+            label: t('action.discard'),
+            danger: true,
+            run: () => api.discard(root, paths),
+            done: t('notice.discarded', { n: paths.length }),
+          });
+        },
+        [ask, root, t],
+      );
+
+      /** Fetch only moves remote-tracking refs, so only pull and push ask first. */
+      const syncRepo = useCallback(
+        (action) => {
+          if (action === 'fetch') {
+            write('fetch', () => api.sync(root, 'fetch', {}), t('notice.fetched'));
+            return;
+          }
+          ask({
+            title: action === 'push' ? t('op.push') : t('op.pull'),
+            detail: action === 'push' ? t('confirm.pushDetail') : t('confirm.pullDetail'),
+            label: action === 'push' ? t('op.push') : t('op.pull'),
+            run: () => {
+              const status = state.status ?? {};
+              const hasUpstream = status.upstream !== null && status.upstream !== undefined;
+              const extra =
+                action === 'push' && !hasUpstream
+                  ? {
+                      remote: remotes.length > 0 ? remotes[0] : 'origin',
+                      branch: status.branch ?? undefined,
+                      setUpstream: true,
+                    }
+                  : {};
+              return api.sync(root, action, extra);
+            },
+            done: action === 'push' ? t('notice.pushed') : t('notice.pulled'),
+          });
+        },
+        [ask, remotes, root, state.status, t, write],
+      );
+
+      const revertCommit = useCallback(
+        (rev) =>
+          ask({
+            title: t('op.revert'),
+            detail: t('confirm.revertDetail'),
+            label: t('action.revert'),
+            run: () => api.undo(root, 'revert', rev),
+            done: t('notice.reverted', { rev: rev.slice(0, 7) }),
+          }),
+        [ask, root, t],
+      );
+
+      const cherryPickCommit = useCallback(
+        (rev) =>
+          ask({
+            title: t('op.cherryPick'),
+            detail: t('confirm.cherryPickDetail'),
+            label: t('action.cherryPick'),
+            run: () => api.undo(root, 'cherry-pick', rev),
+            done: t('notice.cherryPicked', { rev: rev.slice(0, 7) }),
+          }),
+        [ask, root, t],
+      );
+
+      const resetTo = useCallback(
+        (rev, mode) =>
+          ask({
+            title: mode === 'soft' ? t('op.resetSoft') : t('op.resetMixed'),
+            detail: mode === 'soft' ? t('confirm.resetSoftDetail') : t('confirm.resetMixedDetail'),
+            label: mode === 'soft' ? t('op.resetSoft') : t('op.resetMixed'),
+            danger: true,
+            run: () => api.undo(root, 'reset', rev, mode),
+            done: t('notice.reset', { rev: rev.slice(0, 7) }),
+          }),
+        [ask, root, t],
+      );
+
+      const mergeRef = useCallback(
+        (name) =>
+          ask({
+            title: t('op.merge'),
+            detail: t('confirm.mergeDetail', { name }),
+            label: t('action.merge'),
+            run: () => api.undo(root, 'merge', name),
+            done: t('notice.merged', { name }),
+          }),
+        [ask, root, t],
+      );
 
       const groups = useMemo(() => {
         if (state.phase !== 'ready' || state.status.repo !== true) return [];
@@ -1768,10 +2423,13 @@ window.__ModuleLoader__.load({
 
       const stageablePaths = [];
       const unstageablePaths = [];
+      const discardablePaths = [];
       for (const group of groups) {
         for (const entry of group.entries) {
           if (group.action === 'stage') stageablePaths.push(entry.path);
           else if (group.action === 'unstage') unstageablePaths.push(entry.path);
+          // Only tracked, unstaged files can be restored; untracked ones stay.
+          if (entry.side === 'worktree') discardablePaths.push(entry.path);
         }
       }
 
@@ -1790,12 +2448,15 @@ window.__ModuleLoader__.load({
             clean,
             canStageAll: stageablePaths.length > 0,
             canUnstageAll: unstageablePaths.length > 0,
+            canDiscardAll: discardablePaths.length > 0,
             onStageAll: () => stagePaths(stageablePaths),
             onUnstageAll: () => unstagePaths(unstageablePaths),
+            onDiscardAll: () => discardPaths(discardablePaths),
             onToggleDir: toggleDir,
             onSelect: (entry) => setSelection(entry),
             onStage: stagePaths,
             onUnstage: unstagePaths,
+            onDiscard: discardPaths,
             onClose: () => setSelection(null),
             t,
           }),
@@ -1814,21 +2475,49 @@ window.__ModuleLoader__.load({
           history,
           detail,
           allRefs,
+          busy,
           onToggleAll: () => setAllRefs((value) => !value),
           onOpen: openCommit,
           onBack: () => setDetail({ phase: 'idle', commit: null }),
+          onSync: syncRepo,
+          onRevert: revertCommit,
+          onCherryPick: cherryPickCommit,
+          onCheckoutCommit: checkoutCommit,
+          onReset: resetTo,
           t,
         });
       } else {
-        body = h(BranchesView, { branches, t });
+        body = h(BranchesView, {
+          branches,
+          remotes,
+          busy,
+          onCheckout: switchBranch,
+          onMerge: mergeRef,
+          onDeleteBranch: deleteBranch,
+          onCreateBranch: createBranch,
+          onCreateTag: createTag,
+          onDeleteTag: deleteTag,
+          t,
+        });
       }
 
-      return h('div', { className: 'dsh-git-root' }, style, header, tabs, noticeNode, body);
+      const dialog =
+        confirm === null
+          ? null
+          : h(ConfirmDialog, {
+              request: confirm,
+              busy,
+              onCancel: () => setConfirm(null),
+              onConfirm: runConfirmed,
+              t,
+            });
+
+      return h('div', { className: 'dsh-git-root' }, style, header, tabs, noticeNode, body, dialog);
     }
 
     /** Panel styles: theme tokens only, prefixed classes, no global selectors. */
     const CSS = [
-      '.dsh-git-root{height:100%;min-height:0;flex:auto;display:flex;flex-direction:column;color:var(--dsw-alias-label-primary);font-size:var(--dsh-content-font-size-secondary,13px);line-height:1.5}',
+      '.dsh-git-root{position:relative;height:100%;min-height:0;flex:auto;display:flex;flex-direction:column;color:var(--dsw-alias-label-primary);font-size:var(--dsh-content-font-size-secondary,13px);line-height:1.5}',
       '.dsh-git-spacer{flex:1 1 auto;min-width:0}',
       '.dsh-git-head{flex:none;display:flex;flex-direction:column;gap:2px;padding:8px 6px 7px 12px;border-bottom:.5px solid var(--dsw-alias-border-l1)}',
       '.dsh-git-headrow{display:flex;align-items:center;gap:6px;min-width:0}',
@@ -1942,6 +2631,26 @@ window.__ModuleLoader__.load({
       '.dsh-git-subject{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
       '.dsh-git-ref{flex:none;max-width:90px;padding:0 5px;border-radius:999px;font-size:10px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
       '.dsh-git-ref.head{background:var(--dsw-alias-brand-primary);color:var(--dsw-alias-bg-base)}',
+      '.dsh-git-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}',
+      '.dsh-git-rowact{flex:none;opacity:.6;padding:1px 6px;border:0;border-radius:4px;background:0 0;color:var(--dsw-alias-label-secondary);font:inherit;font-size:11px;white-space:nowrap;cursor:pointer}',
+      '.dsh-git-rowact:hover:not(:disabled){background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);opacity:1}',
+      '.dsh-git-rowact:disabled{opacity:.3;cursor:default}',
+      '.dsh-git-form{flex:none;display:flex;flex-direction:column;gap:6px;padding:8px 10px 10px;border-bottom:.5px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1)}',
+      '.dsh-git-input{width:100%;box-sizing:border-box;padding:5px 8px;border-radius:6px;border:.5px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;outline:none}',
+      '.dsh-git-input:focus{border-color:var(--dsw-alias-brand-primary)}',
+      '.dsh-git-input::placeholder{color:var(--dsw-alias-label-secondary)}',
+      '.dsh-git-formrow{display:flex;align-items:center;justify-content:flex-end;gap:8px}',
+      '.dsh-git-ghost.danger{color:var(--dsw-alias-state-error-primary);border-color:color-mix(in srgb,var(--dsw-alias-state-error-primary) 50%,transparent)}',
+      '.dsh-git-ghost.danger:hover:not(:disabled){color:var(--dsw-alias-state-error-primary);border-color:var(--dsw-alias-state-error-primary)}',
+      '.dsh-git-fileact.danger{color:var(--dsw-alias-state-error-primary)}',
+      '.dsh-git-danger{flex:none;padding:5px 12px;border:0;border-radius:6px;background:var(--dsw-alias-state-error-primary);color:var(--dsw-alias-bg-base);font:inherit;font-size:12px;font-weight:500;white-space:nowrap;cursor:pointer}',
+      '.dsh-git-danger:hover:not(:disabled){opacity:.9}',
+      '.dsh-git-danger:disabled{opacity:.5;cursor:default}',
+      '.dsh-git-overlay{position:absolute;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:16px;background:color-mix(in srgb,var(--dsw-alias-bg-base) 62%,transparent)}',
+      '.dsh-git-dialog{width:100%;max-width:290px;box-sizing:border-box;padding:12px;border-radius:8px;border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-overlay,var(--dsw-alias-bg-layer-2));box-shadow:0 10px 28px color-mix(in srgb,var(--dsw-alias-bg-base) 45%,transparent)}',
+      '.dsh-git-dialogtitle{margin:0 0 6px;color:var(--dsw-alias-label-primary);font-size:13px;font-weight:600}',
+      '.dsh-git-dialogtext{margin:0 0 10px;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:1.5}',
+      '.dsh-git-dialogrow{display:flex;align-items:center;justify-content:flex-end;gap:8px}',
     ].join('');
 
     /** Required browser services; anything absent keeps this plugin inactive. */

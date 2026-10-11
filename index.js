@@ -1,15 +1,22 @@
 /**
- * Host half of the git panel: a read surface and three write endpoints over the
- * composition's HTTP carrier.
+ * Host half of the git panel: a read surface plus the write surface the panel
+ * exposes over the composition's HTTP carrier.
  *
  * Security has one home, here. Every route asks the composition's `connection`
  * service for a rejection first: its Host/Origin fence and browser
  * authentication gate every caller before any repository fact is reachable. On
  * top of that fence each route validates its own inputs: a workspace directory
- * the composition has registered, repository-relative pathspecs, and a commit
- * message. Only `stage`, `unstage` and `commit` change repository state, they
- * are serialized so two of them never race the index, and the whole write group
- * is refused when the row's `allowWrite` is false.
+ * the composition has registered, repository-relative pathspecs, branch and tag
+ * names, commit-ish revisions, and a commit message.
+ *
+ * Every route that changes repository state is serialized, so two of them never
+ * race git's index lock, and the whole write group is refused when the row's
+ * `allowWrite` is false.
+ *
+ * The write surface is bounded on purpose. There is no force anywhere
+ * (`push --force`, `branch -D`, `checkout --force`), no `reset --hard`, and no
+ * deletion of untracked files: each of those destroys work that git cannot give
+ * back, so the panel refuses them rather than offering a confirmation prompt.
  */
 
 import { createGit, GitError } from './lib/git.js';
@@ -25,6 +32,9 @@ const BASE = '/git-panel';
 
 /** Largest request body accepted on a write endpoint. */
 const MAX_BODY_BYTES = 256 * 1024;
+
+/** Longest git output echoed back to the panel, in characters. */
+const MAX_ECHO = 4000;
 
 /** JSON response; every fact here is live, so nothing is cacheable. */
 function json(res, status, payload) {
@@ -60,6 +70,19 @@ function statusFor(code) {
   if (code === 'spawn-failed' || code === 'git-failed') return 500;
   if (code === 'git-exit' || code === 'commit-failed') return 409;
   return 400;
+}
+
+/** Echo git's own summary back to the panel, bounded and stripped of progress noise. */
+function echo(result) {
+  const stdout = String((result && result.stdout) || '').trim();
+  const raw = stdout === '' ? String((result && result.stderr) || '').trim() : stdout;
+  const text = raw
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line !== '')
+    .slice(-6)
+    .join('\n');
+  return text.length > MAX_ECHO ? `${text.slice(0, MAX_ECHO)}…` : text;
 }
 
 /** Parse the JSON body of a write request, or throw a validation GitError. */
@@ -211,6 +234,106 @@ export function apply(ctx, config) {
         const root = await git.allowedRoot(body.root ?? '');
         const outcome = await serialize(() => git.unstage(root, body.paths));
         json(res, 200, { ok: true, unstage: { exitCode: outcome.exitCode } });
+      }),
+    },
+    {
+      path: `${BASE}/remotes`,
+      GET: guarded(async (req, res) => {
+        const root = await queryRoot(new URL(String(req.url), 'http://localhost'));
+        json(res, 200, { ok: true, remotes: await git.remotes(root) });
+      }),
+    },
+    {
+      path: `${BASE}/branch`,
+      POST: guarded(async (req, res) => {
+        const body = await jsonBody(req);
+        const root = await git.allowedRoot(body.root ?? '');
+        // The button means "create and work on it", so this always switches.
+        await serialize(() => git.createBranch(root, body.name, body.start, true));
+        json(res, 200, { ok: true, branch: { name: String(body.name ?? '') } });
+      }),
+    },
+    {
+      path: `${BASE}/checkout`,
+      POST: guarded(async (req, res) => {
+        const body = await jsonBody(req);
+        const root = await git.allowedRoot(body.root ?? '');
+        await serialize(() => git.checkout(root, body.ref, { detach: body.detach === true }));
+        json(res, 200, { ok: true, checkout: { ref: String(body.ref ?? '') } });
+      }),
+    },
+    {
+      path: `${BASE}/branch-delete`,
+      POST: guarded(async (req, res) => {
+        const body = await jsonBody(req);
+        const root = await git.allowedRoot(body.root ?? '');
+        await serialize(() => git.deleteBranch(root, body.name));
+        json(res, 200, { ok: true, branch: { name: String(body.name ?? '') } });
+      }),
+    },
+    {
+      path: `${BASE}/tag`,
+      POST: guarded(async (req, res) => {
+        const body = await jsonBody(req);
+        const root = await git.allowedRoot(body.root ?? '');
+        await serialize(() => git.createTag(root, body.name, body.rev));
+        json(res, 200, { ok: true, tag: { name: String(body.name ?? '') } });
+      }),
+    },
+    {
+      path: `${BASE}/tag-delete`,
+      POST: guarded(async (req, res) => {
+        const body = await jsonBody(req);
+        const root = await git.allowedRoot(body.root ?? '');
+        await serialize(() => git.deleteTag(root, body.name));
+        json(res, 200, { ok: true, tag: { name: String(body.name ?? '') } });
+      }),
+    },
+    {
+      path: `${BASE}/sync`,
+      POST: guarded(async (req, res) => {
+        const body = await jsonBody(req);
+        const root = await git.allowedRoot(body.root ?? '');
+        const action = String(body.action ?? '');
+        const outcome = await serialize(() => {
+          if (action === 'fetch') return git.fetch(root);
+          if (action === 'pull') return git.pull(root);
+          if (action === 'push') {
+            return git.push(root, {
+              remote: body.remote,
+              branch: body.branch,
+              setUpstream: body.setUpstream === true,
+            });
+          }
+          throw new GitError('action 只能是 fetch、pull 或 push', { code: 'bad-request' });
+        });
+        json(res, 200, { ok: true, sync: { action, output: echo(outcome) } });
+      }),
+    },
+    {
+      path: `${BASE}/discard`,
+      POST: guarded(async (req, res) => {
+        const body = await jsonBody(req);
+        const root = await git.allowedRoot(body.root ?? '');
+        const outcome = await serialize(() => git.discard(root, body.paths));
+        json(res, 200, { ok: true, discard: { exitCode: outcome.exitCode } });
+      }),
+    },
+    {
+      path: `${BASE}/undo`,
+      POST: guarded(async (req, res) => {
+        const body = await jsonBody(req);
+        const root = await git.allowedRoot(body.root ?? '');
+        const action = String(body.action ?? '');
+        const rev = String(body.rev ?? '');
+        await serialize(() => {
+          if (action === 'reset') return git.reset(root, rev, body.mode);
+          if (action === 'revert') return git.revert(root, rev);
+          if (action === 'cherry-pick') return git.cherryPick(root, rev);
+          if (action === 'merge') return git.merge(root, rev);
+          throw new GitError('action 只能是 reset、revert、cherry-pick 或 merge', { code: 'bad-request' });
+        });
+        json(res, 200, { ok: true, undo: { action, rev } });
       }),
     },
   ];

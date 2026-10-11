@@ -48,6 +48,9 @@ function capture(argv, cwd) {
   return { status: result.status, stdout: read(outPath), stderr: read(errPath), error: result.error };
 }
 
+/** Every git argv the adapter has issued, in order (for shape assertions). */
+const commands = [];
+
 /** Minimal stand-in for the composition's subprocess provider. */
 function fakeSubprocess() {
   return {
@@ -55,6 +58,7 @@ function fakeSubprocess() {
       return command;
     },
     spawn(spec) {
+      commands.push(spec.argv.slice());
       const outcome = capture(spec.argv, spec.cwd);
       return {
         collected: {
@@ -95,6 +99,7 @@ const ctx = {
 };
 
 let failures = 0;
+let skips = 0;
 function check(label, condition, detail) {
   const mark = condition ? 'PASS' : 'FAIL';
   if (!condition) failures += 1;
@@ -233,6 +238,260 @@ try {
 }
 check('guard: allowWrite=false blocks staging', blocked !== null && blocked.code === 'read-only');
 
+// --- discard -----------------------------------------------------------------
+// Start from a known state: the worktree modification left over above.
+await git.discard(scratch, ['alpha.txt']);
+const afterDiscard = await git.status(scratch);
+check(
+  'discard: restores a tracked file to its committed content',
+  afterDiscard.changes.total === 0,
+  JSON.stringify(afterDiscard.changes),
+);
+
+await writeFile(join(scratch, 'fresh.txt'), 'brand new\n', 'utf8');
+let refusedUntracked = null;
+try {
+  await git.discard(scratch, ['fresh.txt']);
+} catch (error) {
+  refusedUntracked = error;
+}
+check('discard: refuses to delete an untracked file', refusedUntracked !== null, refusedUntracked && refusedUntracked.code);
+const keptUntracked = await git.status(scratch);
+check(
+  'discard: the untracked file survives the refusal',
+  keptUntracked.changes.untracked.some((entry) => entry.path === 'fresh.txt'),
+);
+
+// --- branches ----------------------------------------------------------------
+await git.createBranch(scratch, 'feature/x', null, true);
+const onFeature = await git.status(scratch);
+check('branch: create switches to the new branch', onFeature.branch === 'feature/x', onFeature.branch);
+
+await git.checkout(scratch, 'main', {});
+const backOnMain = await git.status(scratch);
+check('checkout: switches back to an existing branch', backOnMain.branch === 'main', backOnMain.branch);
+
+await git.deleteBranch(scratch, 'feature/x');
+const refsAfterDelete = await git.branches(scratch);
+check(
+  'branch: safe delete removes a merged branch',
+  !refsAfterDelete.refs.some((entry) => entry.kind === 'local' && entry.name === 'feature/x'),
+);
+
+await git.createBranch(scratch, 'wip', null, true);
+await writeFile(join(scratch, 'wip.txt'), 'work in progress\n', 'utf8');
+await git.stage(scratch, ['wip.txt']);
+const wipCommit = await git.commit(scratch, 'wip commit');
+await git.checkout(scratch, 'main', {});
+let unmerged = null;
+try {
+  await git.deleteBranch(scratch, 'wip');
+} catch (error) {
+  unmerged = error;
+}
+check(
+  'branch: safe delete refuses an unmerged branch',
+  unmerged !== null && /未合并/.test(unmerged.message),
+  unmerged && unmerged.message,
+);
+
+// --- cherry-pick --------------------------------------------------------------
+await git.cherryPick(scratch, wipCommit.hash);
+const afterPick = await git.log(scratch, { limit: 1 });
+check(
+  'cherry-pick: replays the commit on the current branch',
+  afterPick.commits[0].subject === 'wip commit',
+  JSON.stringify(afterPick.commits[0].subject),
+);
+
+// --- merge: two branches that each moved on their own files -------------------
+// Both sides advance, so this cannot degenerate into "already up to date".
+await git.createBranch(scratch, 'topic', null, true);
+await writeFile(join(scratch, 'topic.txt'), 'topic work\n', 'utf8');
+await git.stage(scratch, ['topic.txt']);
+await git.commit(scratch, 'topic commit');
+await git.checkout(scratch, 'main', {});
+await writeFile(join(scratch, 'main-side.txt'), 'main side\n', 'utf8');
+await git.stage(scratch, ['main-side.txt']);
+await git.commit(scratch, 'main side commit');
+await git.merge(scratch, 'topic');
+const afterMerge = await git.log(scratch, { limit: 1 });
+check(
+  'merge: joins the branch histories into a merge commit',
+  afterMerge.commits[0].parents.length === 2 && /^Merge/.test(afterMerge.commits[0].subject),
+  `${afterMerge.commits[0].subject} parents=${String(afterMerge.commits[0].parents.length)}`,
+);
+await git.deleteBranch(scratch, 'topic');
+const refsAfterMerge = await git.branches(scratch);
+check(
+  'branch: the merged branch can now be deleted',
+  !refsAfterMerge.refs.some((entry) => entry.kind === 'local' && entry.name === 'topic'),
+);
+
+await writeFile(join(scratch, 'revert-me.txt'), 'temporary\n', 'utf8');
+await git.stage(scratch, ['revert-me.txt']);
+const doomed = await git.commit(scratch, 'to be reverted');
+await git.revert(scratch, doomed.hash);
+const afterRevert = await git.log(scratch, { limit: 2 });
+check(
+  'revert: records the inverse as a new commit',
+  /^Revert/.test(afterRevert.commits[0].subject),
+  afterRevert.commits[0].subject,
+);
+
+// --- reset (soft and mixed only) ---------------------------------------------
+await git.reset(scratch, 'HEAD~1', 'soft');
+const afterSoft = await git.status(scratch);
+check(
+  'reset(soft): rewinds HEAD and keeps the change staged',
+  afterSoft.changes.staged.some((entry) => entry.path === 'revert-me.txt'),
+  JSON.stringify(afterSoft.changes),
+);
+await git.reset(scratch, 'HEAD', 'mixed');
+const afterMixed = await git.status(scratch);
+check(
+  'reset(mixed): moves the change out of the index',
+  afterMixed.changes.staged.length === 0 && afterMixed.changes.unstaged.length > 0,
+  JSON.stringify(afterMixed.changes),
+);
+let hardRefused = null;
+try {
+  await git.reset(scratch, 'HEAD', 'hard');
+} catch (error) {
+  hardRefused = error;
+}
+check('reset: refuses --hard outright', hardRefused !== null && hardRefused.code === 'bad-request');
+await git.stage(scratch, ['revert-me.txt']);
+await git.commit(scratch, 'keep the file');
+
+// --- ref and rev validation ---------------------------------------------------
+const badNames = ['bad name', '-x', 'double..dot', 'trailing/', 'with~tilde', 'at@{brace'];
+let badNameRejected = 0;
+for (const name of badNames) {
+  try {
+    await git.createBranch(scratch, name, null, false);
+  } catch (error) {
+    if (error.code === 'bad-request') badNameRejected += 1;
+  }
+}
+check('guard: every malformed ref name is rejected', badNameRejected === badNames.length, badNameRejected);
+
+let badRev = null;
+try {
+  await git.checkout(scratch, '../evil', { detach: true });
+} catch (error) {
+  badRev = error;
+}
+check('guard: a rev that could escape is rejected', badRev !== null && badRev.code === 'bad-request');
+
+// --- detached checkout --------------------------------------------------------
+const headNow = await git.log(scratch, { limit: 1 });
+await git.checkout(scratch, headNow.commits[0].hash, { detach: true });
+const detached = await git.status(scratch);
+check('checkout: a commit hash detaches HEAD', detached.detached === true, JSON.stringify(detached.detached));
+await git.checkout(scratch, 'main', {});
+
+// --- remotes ------------------------------------------------------------------
+let noRemoteFetch = null;
+try {
+  await git.fetch(scratch);
+} catch (error) {
+  noRemoteFetch = error;
+}
+check(
+  'fetch: a repository without remotes is refused clearly',
+  noRemoteFetch !== null && noRemoteFetch.code === 'bad-request',
+  noRemoteFetch && noRemoteFetch.message,
+);
+
+const remoteDir = join(ioDir, 'remote.git');
+await rm(remoteDir, { recursive: true, force: true });
+gitCli(['init', '--bare', remoteDir], root);
+gitCli(['remote', 'add', 'origin', remoteDir], scratch);
+const remoteList = await git.remotes(scratch);
+check('remotes: the configured remote is listed', remoteList.join(',') === 'origin', JSON.stringify(remoteList));
+
+/** The git-level argv of the most recent command whose subcommand is `name`. */
+const lastArgv = (name) => {
+  for (let index = commands.length - 1; index >= 0; index -= 1) {
+    // argv[0] is the executable; argv[1] is the subcommand.
+    if (commands[index][1] === name) return commands[index].slice(1);
+  }
+  return [];
+};
+
+// git's local transport forks `sh`, which this sandbox blocks (no named pipes),
+// so the remote commands are asserted by invocation shape and a real round trip
+// is reported as skipped rather than silently passing.
+let transport = 'ok';
+const attemptTransport = async (run) => {
+  try {
+    await run();
+  } catch (error) {
+    const message = String((error && error.message) || error);
+    transport = /signal pipe|could not read from remote/i.test(message) ? 'sandbox' : `failed: ${message}`;
+  }
+};
+
+commands.length = 0;
+await attemptTransport(() => git.push(scratch, { remote: 'origin', branch: 'main', setUpstream: true }));
+check(
+  'push: publishing a branch uses `-u <remote> <branch>`',
+  lastArgv('push').join(' ') === 'push -u origin main',
+  lastArgv('push').join(' '),
+);
+
+commands.length = 0;
+await attemptTransport(() => git.push(scratch, {}));
+check('push: a plain push carries no extra arguments', lastArgv('push').join(' ') === 'push', lastArgv('push').join(' '));
+
+commands.length = 0;
+await attemptTransport(() => git.fetch(scratch));
+check('fetch: fetches every remote and prunes', lastArgv('fetch').join(' ') === 'fetch --all --prune', lastArgv('fetch').join(' '));
+
+commands.length = 0;
+await attemptTransport(() => git.pull(scratch));
+check('pull: pulls fast-forward only', lastArgv('pull').join(' ') === 'pull --ff-only', lastArgv('pull').join(' '));
+
+if (transport === 'sandbox') {
+  skips += 1;
+  console.log(
+    "SKIP  push/fetch/pull end to end: this sandbox blocks git's local transport (sh.exe cannot create signal pipes)",
+  );
+} else {
+  check('push/fetch/pull: the local remote round-trips', transport === 'ok', transport);
+}
+
+// --- the new writes obey the same read-only fence -----------------------------
+let readOnlyBranch = null;
+try {
+  await readOnly.createBranch(scratch, 'nope', null, false);
+} catch (error) {
+  readOnlyBranch = error;
+}
+check('guard: allowWrite=false blocks branch creation', readOnlyBranch !== null && readOnlyBranch.code === 'read-only');
+
+let readOnlyPush = null;
+try {
+  await readOnly.push(scratch, {});
+} catch (error) {
+  readOnlyPush = error;
+}
+check('guard: allowWrite=false blocks push', readOnlyPush !== null && readOnlyPush.code === 'read-only');
+
+let readOnlyDiscard = null;
+try {
+  await readOnly.discard(scratch, ['alpha.txt']);
+} catch (error) {
+  readOnlyDiscard = error;
+}
+check('guard: allowWrite=false blocks discard', readOnlyDiscard !== null && readOnlyDiscard.code === 'read-only');
+
+await rm(remoteDir, { recursive: true, force: true });
 await rm(scratch, { recursive: true, force: true });
-console.log(failures === 0 ? '\nALL PASS' : `\n${String(failures)} FAILURE(S)`);
+console.log(
+  failures === 0
+    ? `\nALL PASS${skips === 0 ? '' : ` (${String(skips)} skipped)`}`
+    : `\n${String(failures)} FAILURE(S)`,
+);
 process.exit(failures === 0 ? 0 : 1);

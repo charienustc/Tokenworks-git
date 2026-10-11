@@ -144,6 +144,16 @@ const BRANCHES_PAYLOAD = {
       subject: 'second commit',
     },
     {
+      kind: 'local',
+      name: 'feature',
+      hash: 'def5678',
+      upstream: null,
+      track: null,
+      head: false,
+      date: '2026-10-09T12:00:00+08:00',
+      subject: 'first commit',
+    },
+    {
       kind: 'remote',
       name: 'origin/main',
       hash: 'abc1234',
@@ -179,6 +189,7 @@ function createHarness(options = {}) {
       }
       if (target.pathname === `${API}/log`) return LOG_PAYLOAD;
       if (target.pathname === `${API}/branches`) return BRANCHES_PAYLOAD;
+      if (target.pathname === `${API}/remotes`) return { ok: true, remotes: ['origin'] };
       if (target.pathname === `${API}/commit` && target.searchParams.has('rev')) {
         return DETAIL_PAYLOAD;
       }
@@ -543,6 +554,14 @@ function lastCall(harness, predicate) {
   return harness.fetchCalls.filter(predicate).at(-1);
 }
 
+/** The last POST that hit one exact endpoint path (a prefix match is a trap). */
+function postTo(harness, path) {
+  return lastCall(harness, (call) => {
+    const target = new URL(call.url, 'http://localhost');
+    return target.pathname === `${API}${path}` && call.init !== null && call.init.method === 'POST';
+  });
+}
+
 // ==============================================================================
 // Scenario 1: registrations
 // ==============================================================================
@@ -688,6 +707,54 @@ function lastCall(harness, predicate) {
   check('commit: success notice shows the hash', h.text().includes('已提交 abc1234567890'));
   check('commit: the draft is cleared', h.all().find((node) => node.type === 'textarea').props.value === '');
 
+  // --- discard: tracked files only, always behind a confirmation ---------------
+  const discardButtons = h.byClass('dsh-git-fileact').filter((node) => h.text(node) === '放弃');
+  check('changes: only tracked, unstaged files offer discard', discardButtons.length === 2, discardButtons.length);
+
+  h.click(discardButtons[0]);
+  await h.settle();
+  const discardDialog = h.byClass('dsh-git-dialog')[0];
+  check(
+    'discard: a confirmation dialog appears first',
+    discardDialog !== undefined && h.text(discardDialog).includes('无法恢复'),
+    discardDialog === undefined ? 'no dialog' : h.text(discardDialog),
+  );
+  const discardDialogButtons = h.descendants(discardDialog, (node) => node.type === 'button');
+  check(
+    'discard: the dialog offers cancel and a danger action',
+    discardDialogButtons.length === 2 && h.hasClass(discardDialogButtons[1], 'dsh-git-danger'),
+  );
+
+  h.click(discardDialogButtons[0]);
+  await h.settle();
+  check(
+    'discard: cancelling closes the dialog without writing',
+    h.byClass('dsh-git-dialog').length === 0 && postTo(h, '/discard') === undefined,
+  );
+
+  h.click(h.byClass('dsh-git-fileact').filter((node) => h.text(node) === '放弃')[0]);
+  await h.settle();
+  h.click(h.descendants(h.byClass('dsh-git-dialog')[0], (node) => node.type === 'button')[1]);
+  await h.settle();
+  const discardCall = postTo(h, '/discard');
+  check(
+    'discard: confirming posts the file path',
+    discardCall !== undefined && discardCall.body.paths.join(',') === 'src/app.ts',
+    JSON.stringify(discardCall && discardCall.body),
+  );
+  check('discard: the notice reports the discarded count', h.text().includes('已放弃 1 个文件的改动'));
+
+  h.click(h.byText('全部放弃')[0]);
+  await h.settle();
+  h.click(h.descendants(h.byClass('dsh-git-dialog')[0], (node) => node.type === 'button')[1]);
+  await h.settle();
+  const discardAllCall = postTo(h, '/discard');
+  check(
+    'discard: discard-all covers the unstaged tracked paths',
+    discardAllCall !== undefined && discardAllCall.body.paths.join(',') === 'src/app.ts,README.md',
+    JSON.stringify(discardAllCall && discardAllCall.body),
+  );
+
   // The notice dismisses itself after a few seconds.
   h.advance(5000);
   await h.settle();
@@ -723,6 +790,36 @@ function lastCall(harness, predicate) {
   const dot = h.descendants(rowSvgs[0], (node) => node.type === 'circle')[0];
   check('history: the dot is solid on its lane', dot !== undefined && typeof dot.props.fill === 'string' && dot.props.fill.startsWith('var('), dot && dot.props.fill);
 
+  // --- remote sync from the history toolbar ------------------------------------
+  const historyToolbar = h.byClass('dsh-git-toolbar')[0];
+  check(
+    'history: the toolbar carries fetch, pull and push',
+    ['获取', '拉取', '推送'].every((label) => h.text(historyToolbar).includes(label)),
+    h.text(historyToolbar),
+  );
+
+  h.click(h.byText('获取')[0]);
+  await h.settle();
+  const fetchCall = postTo(h, '/sync');
+  check(
+    'fetch: runs without a prompt',
+    fetchCall !== undefined && fetchCall.body.action === 'fetch' && h.byClass('dsh-git-dialog').length === 0,
+    JSON.stringify(fetchCall && fetchCall.body),
+  );
+
+  h.click(h.byText('推送')[0]);
+  await h.settle();
+  const pushDialog = h.byClass('dsh-git-dialog')[0];
+  check('push: asks before publishing', pushDialog !== undefined && h.text(pushDialog).includes('推送到远端'));
+  h.click(h.descendants(pushDialog, (node) => node.type === 'button')[1]);
+  await h.settle();
+  const pushCall = postTo(h, '/sync');
+  check(
+    'push: confirming posts the action, and an existing upstream needs no -u',
+    pushCall !== undefined && pushCall.body.action === 'push' && pushCall.body.setUpstream === undefined,
+    JSON.stringify(pushCall && pushCall.body),
+  );
+
   h.click(rows[0]);
   await h.settle();
   check('history: detail shows the message block', h.text().includes('body line'));
@@ -731,6 +828,39 @@ function lastCall(harness, predicate) {
   check('history: detail header names the file', h.text(fileRows[0]).includes('src/app.ts'));
   check('history: detail shows the per-file stat', h.text(fileRows[0]).includes('+2 −1'), h.text(fileRows[0]));
   check('history: detail renders the patch with a gutter', h.byClass('dsh-git-word').length > 0 || h.byClass('dsh-git-line').length > 0);
+
+  // --- commit detail actions ---------------------------------------------------
+  const detailActions = h.byClass('dsh-git-actions')[0];
+  check(
+    'history: the detail offers the commit actions',
+    detailActions !== undefined &&
+      ['拣选', '还原', '检出', '软重置', '混合重置'].every((label) => h.text(detailActions).includes(label)),
+    detailActions === undefined ? 'no actions' : h.text(detailActions),
+  );
+
+  h.click(h.byText('拣选')[0]);
+  await h.settle();
+  const pickDialog = h.byClass('dsh-git-dialog')[0];
+  check('cherry-pick: asks before applying', pickDialog !== undefined && h.text(pickDialog).includes('应用到当前分支'));
+  h.click(h.descendants(pickDialog, (node) => node.type === 'button')[1]);
+  await h.settle();
+  const pickCall = postTo(h, '/undo');
+  check(
+    'cherry-pick: confirming posts the commit rev',
+    pickCall !== undefined && pickCall.body.action === 'cherry-pick' && pickCall.body.rev === 'abc1234567890',
+    JSON.stringify(pickCall && pickCall.body),
+  );
+
+  h.click(h.byText('软重置')[0]);
+  await h.settle();
+  h.click(h.descendants(h.byClass('dsh-git-dialog')[0], (node) => node.type === 'button')[1]);
+  await h.settle();
+  const resetCall = postTo(h, '/undo');
+  check(
+    'reset: the soft reset posts its mode',
+    resetCall !== undefined && resetCall.body.action === 'reset' && resetCall.body.mode === 'soft',
+    JSON.stringify(resetCall && resetCall.body),
+  );
 
   h.click(h.byText('分支')[0]);
   await h.settle();
@@ -747,7 +877,109 @@ function lastCall(harness, predicate) {
 }
 
 // ==============================================================================
-// Scenario 4: non-repository, error retry, live title
+// Scenario 4: branch, tag and remote operations
+// ==============================================================================
+{
+  const h = createHarness();
+  await h.mountBody();
+  h.click(h.byText('分支')[0]);
+  await h.settle();
+
+  const toolbar = h.byClass('dsh-git-toolbar')[0];
+  check(
+    'branches: the toolbar offers both create forms',
+    h.text(toolbar).includes('新建分支') && h.text(toolbar).includes('新建标签'),
+    h.text(toolbar),
+  );
+  check('branches: configured remotes are listed', h.text().includes('远程仓库') && h.text().includes('origin'));
+
+  // Create a branch from the inline form.
+  h.click(h.byText('新建分支')[0]);
+  await h.settle();
+  const inputs = h.all().filter((node) => node.type === 'input');
+  check('branch: the create form asks for a name and a start point', inputs.length === 2, inputs.length);
+  inputs[0].props.onChange({ target: { value: 'feature/login' } });
+  await h.settle();
+  h.click(h.byText('创建')[0]);
+  await h.settle();
+  const branchCall = postTo(h, '/branch');
+  check(
+    'branch: creating posts the name',
+    branchCall !== undefined && branchCall.body.name === 'feature/login',
+    JSON.stringify(branchCall && branchCall.body),
+  );
+
+  // A non-current branch carries the switch / merge / delete cluster.
+  const featureRow = h
+    .byClass('dsh-git-row')
+    .find((node) => h.text(node).includes('feature') && h.text(node).includes('切换'));
+  check(
+    'branch: a non-current branch offers switch, merge and delete',
+    featureRow !== undefined && ['切换', '合并', '删除'].every((label) => h.text(featureRow).includes(label)),
+    featureRow === undefined ? 'no row' : h.text(featureRow),
+  );
+
+  h.click(h.descendants(featureRow, (node) => node.type === 'button' && h.text(node) === '切换')[0]);
+  await h.settle();
+  check('branch: switching asks first', h.byClass('dsh-git-dialog').length === 1);
+  h.click(h.descendants(h.byClass('dsh-git-dialog')[0], (node) => node.type === 'button')[1]);
+  await h.settle();
+  const checkoutCall = postTo(h, '/checkout');
+  check(
+    'branch: switching posts the branch name without detaching',
+    checkoutCall !== undefined && checkoutCall.body.ref === 'feature' && checkoutCall.body.detach === false,
+    JSON.stringify(checkoutCall && checkoutCall.body),
+  );
+
+  const rowAgain = h
+    .byClass('dsh-git-row')
+    .find((node) => h.text(node).includes('feature') && h.text(node).includes('删除'));
+  h.click(h.descendants(rowAgain, (node) => node.type === 'button' && h.text(node) === '删除')[0]);
+  await h.settle();
+  const deleteDialog = h.byClass('dsh-git-dialog')[0];
+  check(
+    'branch: deleting warns that it is a safe delete',
+    deleteDialog !== undefined && h.text(deleteDialog).includes('安全删除'),
+  );
+  h.click(h.descendants(deleteDialog, (node) => node.type === 'button')[1]);
+  await h.settle();
+  const deleteCall = postTo(h, '/branch-delete');
+  check(
+    'branch: deleting posts the branch name',
+    deleteCall !== undefined && deleteCall.body.name === 'feature',
+    JSON.stringify(deleteCall && deleteCall.body),
+  );
+
+  // Tags: create through the form, delete through the row.
+  h.click(h.byText('新建标签')[0]);
+  await h.settle();
+  const tagInputs = h.all().filter((node) => node.type === 'input');
+  tagInputs[0].props.onChange({ target: { value: 'v1.0.0' } });
+  await h.settle();
+  h.click(h.byText('创建')[0]);
+  await h.settle();
+  const tagCall = postTo(h, '/tag');
+  check(
+    'tag: creating posts the name',
+    tagCall !== undefined && tagCall.body.name === 'v1.0.0',
+    JSON.stringify(tagCall && tagCall.body),
+  );
+
+  const tagRow = h.byClass('dsh-git-row').find((node) => h.text(node).includes('v0.1.0'));
+  h.click(h.descendants(tagRow, (node) => node.type === 'button' && h.text(node) === '删除')[0]);
+  await h.settle();
+  h.click(h.descendants(h.byClass('dsh-git-dialog')[0], (node) => node.type === 'button')[1]);
+  await h.settle();
+  const tagDeleteCall = postTo(h, '/tag-delete');
+  check(
+    'tag: deleting posts the name',
+    tagDeleteCall !== undefined && tagDeleteCall.body.name === 'v0.1.0',
+    JSON.stringify(tagDeleteCall && tagDeleteCall.body),
+  );
+}
+
+// ==============================================================================
+// Scenario 5: non-repository, error retry, live title
 // ==============================================================================
 {
   const h = createHarness({
