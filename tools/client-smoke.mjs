@@ -661,11 +661,17 @@ function lastCall(harness, predicate) {
   await h.settle();
   const ready = h.byClass('dsh-git-primary')[0];
   check('commit: submit label counts the staged files', h.text(ready).includes('提交 1 个文件'), h.text(ready));
-  ready.props.onClick({});
+  // The primary path is the Ctrl/⌘+Enter shortcut on the draft itself. The tree
+  // re-rendered after the change, so the textarea must be re-queried: its old
+  // node carries the stale disabled closure.
+  const fresh = h.all().find((node) => node.type === 'textarea');
+  let prevented = false;
+  fresh.props.onKeyDown({ key: 'Enter', ctrlKey: true, preventDefault() { prevented = true; } });
+  check('commit: the shortcut preventDefaults the Enter', prevented === true);
   await h.settle();
   const commitCall = lastCall(h, (call) => call.url.startsWith(`${API}/commit`) && call.init && call.init.method === 'POST');
   check(
-    'commit: Ctrl-free submit posts the message',
+    'commit: Ctrl+Enter posts the message',
     commitCall !== undefined && commitCall.body !== undefined && commitCall.body.message === 'polish pass',
     JSON.stringify(commitCall && commitCall.body),
   );
