@@ -19,6 +19,7 @@
   <rect width="1280" height="300" fill="url(#fade)"/>
 
   <!-- commit-graph motif: the same lanes, rounded bends and solid dots the panel draws -->
+  <g transform="translate(44 0)">
   <g fill="none" stroke-width="4" stroke-linecap="round">
     <path d="M968 28 V272" stroke="#4169e1" stroke-opacity="0.95"/>
     <path d="M968 112 C968 134, 1032 132, 1032 156 V272" stroke="#3DA66B" stroke-opacity="0.95"/>
@@ -36,9 +37,10 @@
     <circle cx="1096" cy="244" r="7" fill="#d99a2b"/>
     <circle cx="1150" cy="118" r="7" fill="#8b98a8"/>
   </g>
+  </g>
 
   <text x="72" y="96" font-family="Inter, 'Segoe UI', system-ui, -apple-system, sans-serif" font-size="17" letter-spacing="3.4" fill="#6f8cba">DEEPSEEK HARNESS · PLUGIN</text>
   <text x="72" y="158" font-family="Inter, 'Segoe UI', system-ui, -apple-system, sans-serif" font-size="58" font-weight="700" fill="#ffffff">DSH Git Panel</text>
-  <text x="72" y="204" font-family="Inter, 'Segoe UI', system-ui, -apple-system, sans-serif" font-size="22" fill="#a9c2e8">会话右侧栏的可视化 Git · 改动清单 / 统一 diff / 提交图 / 分支与标签 / 远程同步</text>
+  <text x="72" y="204" font-family="Inter, 'Segoe UI', system-ui, -apple-system, sans-serif" font-size="20" fill="#a9c2e8">会话右侧栏的可视化 Git · 改动清单 / 统一 diff / 提交图 / 分支与标签 / 远程同步</text>
   <text x="72" y="240" font-family="Inter, 'Segoe UI', system-ui, -apple-system, sans-serif" font-size="16" fill="#7f9dc7">Windows · macOS · Linux　|　零第三方依赖　|　中英双语　|　MIT</text>
 </svg>
