@@ -1234,8 +1234,16 @@ function postTo(harness, path) {
   const chip = h.byClass('tw-git-dockchip')[0];
   check('dock: the chip is a button', chip !== undefined && chip.type === 'button');
   check(
-    'dock: the chip carries its own pill outline',
-    /\.tw-git-dockchip\{[^}]*border:\.5px solid/.test(h.text()),
+    'dock: the chip copies the built-in pill metrics, with no frame of its own',
+    /\.tw-git-dockchip\{[^}]*border:none/.test(h.text()) &&
+      /\.tw-git-dockchip\{[^}]*line-height:calc\(20px/.test(h.text()) &&
+      /\.tw-git-dockchip:hover,\.tw-git-dockchip\[aria-expanded="true"\]\{[^}]*interactive-bg-hover/.test(h.text()),
+  );
+  check(
+    'dock: the menu opens upward on the composition menu surface',
+    /\.tw-git-dockmenu\{[^}]*position:absolute/.test(h.text()) &&
+      /\.tw-git-dockmenu\{[^}]*bottom:calc\(100% \+ 8px\)/.test(h.text()) &&
+      /\.tw-git-dockmenu\{[^}]*--dsw-specific-menu/.test(h.text()),
   );
   check(
     'dock: the chip reads the light head route, never the full status walk',

@@ -949,22 +949,26 @@ window.__ModuleLoader__.load({
      * while the tab is mounted, and the chip must look right without it.
      */
     const DOCK_CSS = [
-      '.tw-git-dock{display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:6px}',
-      '.tw-git-dockchip{display:inline-flex;align-items:center;gap:5px;max-width:100%;padding:2px 9px;border:.5px solid var(--dsw-alias-border-l2);border-radius:999px;background:transparent;color:var(--dsw-alias-label-secondary);font-size:11px;line-height:1.7;cursor:pointer;font-family:inherit}',
-      '.tw-git-dockchip:hover{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary)}',
-      '.tw-git-dockname{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-      '.tw-git-dockmeta{color:var(--dsw-alias-label-secondary);font-variant-numeric:tabular-nums;opacity:.85}',
-      '.tw-git-dockmenu{display:flex;flex-direction:column;min-width:190px;max-width:300px;max-height:240px;overflow:auto;padding:4px;border:.5px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-overlay,var(--dsw-alias-bg-layer-2));box-shadow:0 8px 22px color-mix(in srgb,var(--dsw-alias-bg-base) 40%,transparent)}',
-      '.tw-git-dockrow{display:flex;align-items:center;gap:6px;width:100%;box-sizing:border-box;padding:4px 7px;border:.5px solid transparent;border-radius:6px;background:transparent;color:var(--dsw-alias-label-secondary);font-size:12px;text-align:left;cursor:pointer;font-family:inherit}',
-      '.tw-git-dockrow:hover{background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary)}',
+      // The chip copies the metrics of the built-in pills beside it (no frame, the
+      // same 20px line box, the same tertiary label and hover fill), and the menu
+      // uses the composition's menu surface, so both read as part of that row.
+      '.tw-git-dock{position:relative;display:inline-flex;align-items:center;min-width:0}',
+      '.tw-git-dockchip{box-sizing:border-box;max-width:100%;display:inline-flex;align-items:center;gap:6px;padding:1px 8px;background:0 0;border:none;border-radius:999px;color:var(--dsw-alias-label-tertiary);font:inherit;font-size:calc(var(--dsh-content-font-size-secondary,13px) - 1px);line-height:calc(20px + var(--dsh-content-font-delta-secondary,0px));font-variant-numeric:tabular-nums;white-space:nowrap;cursor:pointer}',
+      '.tw-git-dockchip svg{flex:none;width:14px;height:14px}',
+      '.tw-git-dockchip:hover,.tw-git-dockchip[aria-expanded="true"]{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-secondary)}',
+      '.tw-git-dockname{max-width:200px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.tw-git-dockmeta{flex:none;font-variant-numeric:tabular-nums}',
+      '.tw-git-dockmenu{position:absolute;bottom:calc(100% + 8px);left:0;z-index:30;display:flex;flex-direction:column;min-width:190px;max-width:300px;max-height:240px;overflow:auto;padding:4px;border:.5px solid var(--dsw-alias-border-l1);border-radius:var(--dsw-radius-lg,8px);background:var(--dsw-specific-menu,var(--dsw-alias-bg-overlay,var(--dsw-alias-bg-layer-2)));backdrop-filter:var(--dsw-menu-backdrop-filter);box-shadow:0 12px 28px color-mix(in srgb,var(--dsw-alias-bg-base) 45%,transparent)}',
+      '.tw-git-dockrow{display:flex;align-items:center;gap:6px;width:100%;box-sizing:border-box;padding:4px 8px;border:.5px solid transparent;border-radius:var(--dsw-radius-md,6px);background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;line-height:20px;text-align:left;cursor:pointer}',
+      '.tw-git-dockrow:hover{background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-1));color:var(--dsw-alias-label-primary)}',
       '.tw-git-dockrow.current{border-color:var(--dsw-alias-border-l2);color:var(--dsw-alias-label-primary);cursor:default}',
-      '.tw-git-dockconfirm{display:flex;flex-direction:column;gap:5px;padding:6px 7px}',
+      '.tw-git-dockconfirm{display:flex;flex-direction:column;gap:5px;padding:6px 8px}',
       '.tw-git-docktitle{color:var(--dsw-alias-label-primary);font-size:12px;font-weight:600}',
-      '.tw-git-docknote{color:var(--dsw-alias-label-secondary);font-size:11px;line-height:1.5;padding:2px 7px}',
-      '.tw-git-dockerror{color:var(--dsw-alias-state-error-primary);font-size:11px;line-height:1.5;padding:2px 7px;word-break:break-word}',
+      '.tw-git-docknote{color:var(--dsw-alias-label-secondary);font-size:11px;line-height:1.5}',
+      '.tw-git-dockerror{color:var(--dsw-alias-state-error-primary);font-size:11px;line-height:1.5;word-break:break-word}',
       '.tw-git-dockactions{display:flex;align-items:center;justify-content:flex-end;gap:6px}',
-      '.tw-git-dockbtn{padding:3px 10px;border:.5px solid var(--dsw-alias-border-l2);border-radius:999px;background:transparent;color:var(--dsw-alias-label-primary);font-size:11px;line-height:1.7;cursor:pointer;font-family:inherit}',
-      '.tw-git-dockbtn:hover{background:var(--dsw-alias-bg-layer-1)}',
+      '.tw-git-dockbtn{padding:2px 10px;border:.5px solid var(--dsw-alias-border-l2);border-radius:999px;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:11px;line-height:20px;cursor:pointer}',
+      '.tw-git-dockbtn:hover{background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-1))}',
       '.tw-git-dockbtn.primary{border-color:var(--dsw-alias-brand-primary);color:var(--dsw-alias-brand-primary)}',
       '.tw-git-dockbtn:disabled{opacity:.5;cursor:default}',
     ].join('');
@@ -2089,7 +2093,7 @@ window.__ModuleLoader__.load({
               else void openMenu();
             },
           },
-          h(GitMark, { size: 12 }),
+          h(GitMark, { size: 14 }),
           h('span', { className: 'tw-git-dockname' }, label),
           ahead === '' && behind === '' ? null : h('span', { className: 'tw-git-dockmeta' }, `${ahead}${behind}`),
         ),
