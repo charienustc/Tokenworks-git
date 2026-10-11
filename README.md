@@ -141,7 +141,6 @@ https://git.ustc.edu.cn/Charien/tokenworks-git-panel.git
 - [x] 安全边界：信任栅栏、工作区栅栏、rev / ref / 路径白名单（拒绝选项注入与通配展开）、只读栅栏、写操作串行、超时单独映射
 - [x] 一轮完整审计的修复：用户可控 rev 能夹带 git 选项、`f[1].txt` 误伤邻居 `f1.txt`、非 ASCII 路径被转义、合并提交的组合差异读不了、提交图菱形接错提交点、重复的批量按钮、死 locale 键
 - [x] 文档：本 README、banner 与 LICENSE
-- [x] 回归验证：Host 86 + Client 158 条断言（真实 git 与微型 React 双轨；套件保留在开发者本机，不入库）
 
 ### 待完成
 
