@@ -1544,6 +1544,62 @@ function postTo(harness, path) {
     abortCall !== undefined && abortCall.body.operation === 'merge',
     JSON.stringify(abortCall && abortCall.body),
   );
+
+  // A Host that predates the conflict side still has to show the file somehow.
+  const legacyConflict = createHarness({
+    responder: (url) => {
+      const { pathname } = new URL(url, 'http://localhost');
+      if (pathname.endsWith('/status')) return conflicted;
+      if (pathname.endsWith('/diff')) {
+        if (url.includes('side=conflict')) return new Error('HTTP 400');
+        return {
+          ok: true,
+          diff: { text: 'diff --git a/conflict.txt b/conflict.txt\n@@ -0,0 +1,5 @@\n+<<<<<<< HEAD\n', binary: false, truncated: false },
+        };
+      }
+      if (pathname.endsWith('/remotes')) return { ok: true, remotes: [] };
+      return { ok: true };
+    },
+  });
+  await legacyConflict.mountBody();
+  const legacyRow = legacyConflict
+    .byClass('tw-git-filemain')
+    .find((node) => legacyConflict.text(node).includes('conflict.txt'));
+  legacyConflict.click(legacyRow);
+  await legacyConflict.settle();
+  check(
+    'conflict: an older Host falls back to the untracked view for the same content',
+    legacyConflict.fetchCalls.some((call) => call.url.includes('side=untracked')) &&
+      legacyConflict.text().includes('<<<<<<<'),
+    JSON.stringify(legacyConflict.fetchCalls.filter((call) => call.url.includes('/diff')).map((call) => call.url)),
+  );
+
+  // …and a Host that reports no operation still gets the explanation, minus the abort.
+  const noOperation = statusPayload();
+  noOperation.status.operation = null;
+  noOperation.status.changes.conflicted = [
+    { kind: 'conflicted', x: 'U', y: 'U', path: 'conflict.txt', origPath: null },
+  ];
+  noOperation.status.changes.total += 1;
+  const quiet = createHarness({
+    responder: (url) => {
+      const { pathname } = new URL(url, 'http://localhost');
+      if (pathname.endsWith('/status')) return noOperation;
+      if (pathname.endsWith('/remotes')) return { ok: true, remotes: [] };
+      return { ok: true };
+    },
+  });
+  await quiet.mountBody();
+  check(
+    'conflict: without a named operation the banner still explains the state',
+    quiet.text().includes('有未解决的冲突') && quiet.text().includes('暂存并提交'),
+    quiet.text(),
+  );
+  check(
+    'conflict: and it offers no abort it cannot perform',
+    quiet.byText('放弃这次操作').length === 0,
+    JSON.stringify(quiet.byText('放弃这次操作').map((node) => quiet.text(node))),
+  );
 }
 
 console.log(failures === 0 ? '\nALL PASS' : `\n${String(failures)} FAILURE(S)`);

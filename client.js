@@ -82,6 +82,7 @@ window.__ModuleLoader__.load({
       'operation.cherry-pick': '拣选未完成',
       'operation.revert': '还原未完成',
       'operation.rebase': '变基未完成',
+      'operation.unknown': '有未解决的冲突',
       'operation.hint': '解决「冲突」组里的文件后暂存并提交；或放弃这次操作。',
       'operation.abort': '放弃这次操作',
       'operation.aborted': '已放弃这次操作',
@@ -219,6 +220,7 @@ window.__ModuleLoader__.load({
       'operation.cherry-pick': 'Cherry-pick in progress',
       'operation.revert': 'Revert in progress',
       'operation.rebase': 'Rebase in progress',
+      'operation.unknown': 'Unresolved conflicts',
       'operation.hint': 'Resolve the files in the Conflicts group, then stage and commit; or abandon it.',
       'operation.abort': 'Abandon it',
       'operation.aborted': 'Abandoned',
@@ -2320,10 +2322,19 @@ window.__ModuleLoader__.load({
         if (selection === null || root === undefined || root === null) return undefined;
         let live = true;
         setDiff({ phase: 'loading' });
-        api
-          .diff(root, selection.side, selection.path)
+        const load = async () => {
+          try {
+            return (await api.diff(root, selection.side, selection.path)).diff;
+          } catch (error) {
+            // The Host only learns the `conflict` side on its next restart, and until
+            // then the same file content comes back through the untracked view.
+            if (selection.side !== 'conflict') throw error;
+            return (await api.diff(root, 'untracked', selection.path)).diff;
+          }
+        };
+        load()
           .then((payload) => {
-            if (live) setDiff({ phase: 'ready', diff: payload.diff });
+            if (live) setDiff({ phase: 'ready', diff: payload });
           })
           .catch((error) => {
             if (live) setDiff({ phase: 'error', error });
@@ -2900,30 +2911,40 @@ window.__ModuleLoader__.load({
       }
 
       // A conflict is repository-wide state, so its banner sits above the tabs rather
-      // than inside the changes view, and says which operation is still open.
+      // than inside the changes view, and says which operation is still open. An older
+      // Host reports no operation, and then the banner still explains the state but
+      // cannot offer to abandon it.
+      const openOperation =
+        state.phase === 'ready' && state.status.repo === true ? state.status.operation : null;
+      const conflictedCount =
+        state.phase === 'ready' && state.status.repo === true ? state.status.changes.conflicted.length : 0;
       const operationNode =
-        state.phase === 'ready' && state.status.repo === true && state.status.operation !== null && state.status.operation !== undefined
-          ? h(
+        conflictedCount === 0
+          ? null
+          : h(
               'div',
               { className: 'tw-git-operation' },
               h(
                 'span',
                 { className: 'tw-git-operationtitle' },
-                t(OPERATION_LABEL[state.status.operation] ?? 'operation.merge'),
+                openOperation === null || openOperation === undefined
+                  ? t('operation.unknown')
+                  : t(OPERATION_LABEL[openOperation] ?? 'operation.merge'),
               ),
               h('span', { className: 'tw-git-operationhint' }, t('operation.hint')),
-              h(
-                'button',
-                {
-                  type: 'button',
-                  className: 'tw-git-ghost danger',
-                  disabled: busy !== null,
-                  onClick: abortOperation,
-                },
-                t('operation.abort'),
-              ),
-            )
-          : null;
+              openOperation === null || openOperation === undefined
+                ? null
+                : h(
+                    'button',
+                    {
+                      type: 'button',
+                      className: 'tw-git-ghost danger',
+                      disabled: busy !== null,
+                      onClick: abortOperation,
+                    },
+                    t('operation.abort'),
+                  ),
+            );
 
       const dialog =
         confirm === null
