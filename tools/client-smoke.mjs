@@ -601,6 +601,22 @@ function postTo(harness, path) {
   check('ready: three tabs render', tabs.length === 3, tabs.length);
   check('ready: changes tab carries the total count', h.text(tabs[0]).includes('4'));
 
+  // The stylesheet's contract: every pill control draws a visible outline, so a
+  // control never looks like plain text.
+  const css = h.text();
+  const outlined = (cls) => new RegExp(`\\.${cls}\\{[^}]*border:`).test(css);
+  check(
+    'style: the pill controls carry an outline',
+    ['dsh-git-ghost', 'dsh-git-batch', 'dsh-git-rowact', 'dsh-git-fileact', 'dsh-git-tab', 'dsh-git-tool'].every(outlined),
+    ['dsh-git-ghost', 'dsh-git-batch', 'dsh-git-rowact', 'dsh-git-fileact', 'dsh-git-tab', 'dsh-git-tool']
+      .filter((cls) => !outlined(cls))
+      .join(','),
+  );
+  check(
+    'style: row buttons keep a hover surface instead of a border',
+    /\.dsh-git-dirrow:hover\{[^}]*background:/.test(css) && /\.dsh-git-commit-row:hover\{[^}]*background:/.test(css),
+  );
+
   check('ready: toolbar shows the total', h.text(h.byClass('dsh-git-toolbar')[0]).includes('4 个改动'));
   const toolbarNode = h.byClass('dsh-git-toolbar')[0];
   const toolbarButtons = [h.byText('全部暂存'), h.byText('全部取消暂存')]
@@ -1035,6 +1051,10 @@ function postTo(harness, path) {
   const button = h.all().find((entry) => entry.props && typeof entry.props.onClick === 'function');
   h.click(button);
   check('header: the button opens the Git tab', h.captured.opened.includes('dshGitPanel'));
+  check(
+    'header: the button carries the same pill outline as the panel',
+    /\.dsh-git-openbtn\{[^}]*border:\.5px solid/.test(h.text()),
+  );
 }
 
 console.log(failures === 0 ? '\nALL PASS' : `\n${String(failures)} FAILURE(S)`);
