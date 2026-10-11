@@ -4,7 +4,7 @@
 
 <div align="center">
 
-[![平台](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-034ea1?style=flat-square)](#安装) [![DSH](https://img.shields.io/badge/DSH-Web%20%E6%8F%92%E4%BB%B6-4169e1?style=flat-square)](#安装) [![依赖](https://img.shields.io/badge/dependencies-0-3DA66B?style=flat-square)](#仓库结构) [![测试](https://img.shields.io/badge/tests-141%20passing-3DA66B?style=flat-square)](#测试) [![License: MIT](https://img.shields.io/badge/license-MIT-3DA66B?style=flat-square)](LICENSE)
+[![平台](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-034ea1?style=flat-square)](#安装) [![DSH](https://img.shields.io/badge/DSH-Web%20%E6%8F%92%E4%BB%B6-4169e1?style=flat-square)](#安装) [![License: MIT](https://img.shields.io/badge/license-MIT-3DA66B?style=flat-square)](LICENSE)
 
 [安装](#安装) · [用法](#用法) · [写操作](#写操作) · [安全边界](#安全边界) · [工作方式](#工作方式) · [测试](#测试) · [问题反馈](https://github.com/charienustc/Tokenworks-git/issues/new)
 
