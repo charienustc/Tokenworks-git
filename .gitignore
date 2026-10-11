@@ -2,5 +2,7 @@ node_modules/
 *.log
 .DS_Store
 
-# Local development notes: kept on disk, deliberately not published.
+# Local development notes and regression suites: kept on disk, deliberately not
+# published. Run them directly with `node tools/smoke.mjs` / `node tools/client-smoke.mjs`.
 docs/manual-test.md
+tools/

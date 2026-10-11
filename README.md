@@ -6,7 +6,7 @@
 
 [![平台](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-034ea1?style=flat-square)](#从-git-安装) [![USTC Tokenworks](https://img.shields.io/badge/USTC%20Tokenworks-Web%20%E6%8F%92%E4%BB%B6-4169e1?style=flat-square)](#从-git-安装) [![License: MIT](https://img.shields.io/badge/license-MIT-3DA66B?style=flat-square)](LICENSE)
 
-[安装](#从-git-安装) · [用法](#用法) · [写操作](#写操作) · [配置](#配置) · [测试](#测试) · [待办](#待办) · [问题反馈](https://github.com/charienustc/Tokenworks-git/issues/new)
+[安装](#从-git-安装) · [用法](#用法) · [写操作](#写操作) · [配置](#配置) · [待办](#待办) · [问题反馈](https://github.com/charienustc/Tokenworks-git/issues/new)
 
 </div>
 
@@ -125,19 +125,8 @@ https://git.ustc.edu.cn/Charien/tokenworks-git-panel.git
 | [`lib/git.js`](lib/git.js) | git 适配器：命令表、porcelain v2 解析、名称 / rev / 路径守卫 |
 | [`client.js`](client.js) | Client 半：页签、三个视图、diff 查看器、提交图、确认弹窗、样式 |
 | [`cordis.patch.yml`](cordis.patch.yml) | bundle patch：把插件插进当前 profile |
-| [`package.json`](package.json) | 包描述、`dsh` 清单、`pnpm test` 脚本 |
-| [`icon.svg`](icon.svg) · [`locale/`](locale) | 插件图标；包级清单文案 |
-| [`tools/`](tools) | 两套 smoke 测试（Host 半与 Client 半） |
-
-## 测试
-
-```
-pnpm test          # 或：node tools/smoke.mjs && node tools/client-smoke.mjs
-```
-
-Host 86 条 + Client 158 条断言。前者对着临时仓库跑真实 git（含用本地裸仓库做远程同步的端到端），后者用微型 React 运行时渲染面板。
-
-代码里没有平台专有分支，但**目前只在 Windows 上实测过**。受限沙箱里 git 的远程命令会因无法创建命名管道而显示 `SKIP`，不受限时真实执行。
+| [`package.json`](package.json) | 包描述、`dsh` 清单、导出与发布白名单 |
+| [`icon.svg`](icon.svg) · [`locale/`](locale) | 插件图标；包级清单文案（设置里显示的插件名与描述） |
 
 ## 待办
 
