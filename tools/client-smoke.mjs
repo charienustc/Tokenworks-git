@@ -412,6 +412,15 @@ function createHarness(options = {}) {
     return found;
   }
 
+  /** Descendants of one node matching a predicate, document order. */
+  function descendants(parent, predicate) {
+    const nodes = [];
+    visit(parent, (node) => {
+      if (node !== parent && predicate(node)) nodes.push(node);
+    });
+    return nodes;
+  }
+
   // --- module load ------------------------------------------------------------
   const loaded = [];
   const sandbox = {
@@ -517,6 +526,7 @@ function createHarness(options = {}) {
     byText,
     click,
     contains,
+    descendants,
     hasClass,
   };
 }
@@ -697,6 +707,21 @@ function lastCall(harness, predicate) {
   check('history: two commits render', rows.length === 2, rows.length);
   check('history: the row shows the short hash and subject', h.text(rows[0]).includes('abc1234') && h.text(rows[0]).includes('second commit'));
   check('history: the HEAD ref chip renders the branch name', h.text(rows[0]).includes('main'));
+  check(
+    'history: the sub-line shows author, date and hash',
+    h.text(rows[0]).includes('Tester') && h.text(rows[0]).includes('2026-10-10 12:00') && h.text(rows[0]).includes('abc1234'),
+    h.text(rows[0]),
+  );
+
+  // The graph joins rows: every edge from one row's bottom continues into the next.
+  const rowSvgs = rows.map((rowNode) => h.descendants(rowNode, (node) => node.type === 'svg')[0]);
+  check('history: each row carries a graph svg', rowSvgs.every((svg) => svg !== undefined));
+  const firstPaths = h.descendants(rowSvgs[0], (node) => node.type === 'path').map((node) => node.props.d);
+  check('history: the parent edge leaves the dot downward', firstPaths.some((d) => d === 'M 8 21 L 8 42'), JSON.stringify(firstPaths));
+  const secondPaths = h.descendants(rowSvgs[1], (node) => node.type === 'path').map((node) => node.props.d);
+  check('history: the root commit draws the incoming edge from the row top', secondPaths.some((d) => d === 'M 8 0 L 8 21'), JSON.stringify(secondPaths));
+  const dot = h.descendants(rowSvgs[0], (node) => node.type === 'circle')[0];
+  check('history: the dot is solid on its lane', dot !== undefined && typeof dot.props.fill === 'string' && dot.props.fill.startsWith('var('), dot && dot.props.fill);
 
   h.click(rows[0]);
   await h.settle();

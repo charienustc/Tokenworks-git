@@ -468,7 +468,10 @@ window.__ModuleLoader__.load({
       const lanes = [];
       const rows = [];
       for (const commit of commits) {
-        let lane = lanes.indexOf(commit.hash);
+        const found = lanes.indexOf(commit.hash);
+        // An edge from above already targets this commit when its lane pre-existed.
+        const entering = found !== -1;
+        let lane = found;
         if (lane === -1) {
           lane = lanes.indexOf(null);
           if (lane === -1) {
@@ -503,71 +506,104 @@ window.__ModuleLoader__.load({
           if (index !== lane && lanes[index] !== null && lanes[index] === lanes[lane]) lanes[index] = null;
         }
         while (lanes.length > 0 && lanes[lanes.length - 1] === null) lanes.pop();
-        rows.push({ commit, lane, before, after: lanes.slice(), parentLanes });
+        rows.push({ commit, lane, entering, before, after: lanes.slice(), parentLanes });
       }
       let widest = 1;
       for (const row of rows) widest = Math.max(widest, row.before.length, row.after.length);
       return { rows, widest };
     }
 
-    /** One row's graph segment: pass-through lanes, the dot, and the parent edges. */
+    /**
+     * One row's graph segment, drawn Git-Graph style: every lane that crosses
+     * this row spans the full height, edges bend with rounded corners, and the
+     * dot sits solid on its line, so rows join into one continuous graph.
+     */
     function GraphCell(props) {
       const { row, widest, height } = props;
-      const step = 10;
-      const x = (lane) => 6 + lane * step;
-      const width = Math.max(18, 6 + widest * step);
+      const step = 14;
+      const x = (lane) => 8 + lane * step;
+      const width = Math.max(22, 6 + widest * step);
       const middle = height / 2;
+      const r = 5;
       const parts = [];
-      const laneColor = (lane) => {
-        const palette = [
-          'var(--dsw-alias-brand-primary)',
-          'var(--dsw-alias-state-success-primary)',
-          'var(--dsw-alias-state-warn-primary)',
-          'var(--dsw-alias-label-secondary)',
-          'var(--dsw-alias-state-error-primary)',
-        ];
-        return palette[lane % palette.length];
-      };
+      const palette = [
+        'var(--dsw-alias-brand-primary)',
+        'var(--dsw-alias-state-success-primary)',
+        'var(--dsw-alias-state-warn-primary)',
+        'var(--dsw-alias-label-secondary)',
+        'var(--dsw-alias-state-error-primary)',
+      ];
+      const laneColor = (lane) => palette[lane % palette.length];
+      const stroke = (color) => ({
+        stroke: color,
+        fill: 'none',
+        'stroke-width': 1.6,
+        'stroke-linecap': 'round',
+        opacity: 0.9,
+      });
+      // Lanes passing straight through this row.
       for (let lane = 0; lane < row.before.length; lane += 1) {
         if (row.before[lane] === null || lane === row.lane) continue;
-        const ended = row.after[lane] === null || row.after[lane] === undefined;
+        if (row.after[lane] !== row.before[lane]) continue;
         parts.push(
           h('path', {
-            key: `lane-${String(lane)}`,
-            d: ended
-              ? `M ${x(lane)} 0 L ${x(lane)} ${middle} L ${x(row.lane)} ${middle}`
-              : `M ${x(lane)} 0 L ${x(lane)} ${height}`,
-            stroke: laneColor(lane),
-            fill: 'none',
-            'stroke-width': 1.5,
-            opacity: 0.85,
+            key: `p${String(lane)}`,
+            d: `M ${x(lane)} 0 L ${x(lane)} ${height}`,
+            ...stroke(laneColor(lane)),
           }),
         );
       }
+      // Lanes that end here: down the lane, then a rounded elbow into the dot.
+      for (let lane = 0; lane < row.before.length; lane += 1) {
+        if (row.before[lane] === null || lane === row.lane) continue;
+        if (row.after[lane] === row.before[lane]) continue;
+        const from = x(lane);
+        const to = x(row.lane);
+        const dir = to > from ? 1 : -1;
+        parts.push(
+          h('path', {
+            key: `e${String(lane)}`,
+            d: `M ${from} 0 L ${from} ${middle - r} Q ${from} ${middle}, ${from + dir * r} ${middle} L ${to} ${middle}`,
+            ...stroke(laneColor(lane)),
+          }),
+        );
+      }
+      // The dot lane's own edge from above; without it rows would not join up.
+      if (row.entering === true) {
+        parts.push(
+          h('path', {
+            key: 'in',
+            d: `M ${x(row.lane)} 0 L ${x(row.lane)} ${middle}`,
+            ...stroke(laneColor(row.lane)),
+          }),
+        );
+      }
+      // Edges from the dot down to each parent lane.
       for (let index = 0; index < row.parentLanes.length; index += 1) {
         const target = row.parentLanes[index];
+        const from = x(row.lane);
+        const to = x(target);
         parts.push(
           h('path', {
-            key: `edge-${String(index)}`,
+            key: `o${String(index)}`,
             d:
               target === row.lane
-                ? `M ${x(row.lane)} ${middle} L ${x(row.lane)} ${height}`
-                : `M ${x(row.lane)} ${middle} C ${x(row.lane)} ${middle + height / 4}, ${x(target)} ${height - height / 4}, ${x(target)} ${height}`,
-            stroke: laneColor(index === 0 ? row.lane : target),
-            fill: 'none',
-            'stroke-width': 1.5,
+                ? `M ${from} ${middle} L ${from} ${height}`
+                : `M ${from} ${middle} C ${from} ${middle + height / 4}, ${to} ${height - height / 4}, ${to} ${height}`,
+            ...stroke(laneColor(target)),
           }),
         );
       }
+      // The dot itself: solid, with a thin ring so crossings stay readable.
       parts.push(
         h('circle', {
           key: 'dot',
           cx: x(row.lane),
           cy: middle,
-          r: 3.2,
-          fill: 'var(--dsw-alias-bg-base)',
-          stroke: laneColor(row.lane),
-          'stroke-width': 1.6,
+          r: 3.4,
+          fill: laneColor(row.lane),
+          stroke: 'var(--dsw-alias-bg-base)',
+          'stroke-width': 1.4,
         }),
       );
       return h(
@@ -585,6 +621,13 @@ window.__ModuleLoader__.load({
 
     /** Upper bound on rendered diff lines: a huge patch must not freeze the panel. */
     const MAX_DIFF_LINES = 4000;
+
+    /** Height of one history row; the graph SVG fills it exactly, so the
+     * lanes of adjacent rows touch and the graph reads as one continuous line. */
+    const GRAPH_ROW = 42;
+
+    /** Compact commit date: `YYYY-MM-DD HH:mm` from the ISO author date. */
+    const commitWhen = (iso) => String(iso ?? '').slice(0, 16).replace('T', ' ');
 
     /** The sign the gutter shows for one diff line. */
     function lineSign(line) {
@@ -1175,19 +1218,41 @@ window.__ModuleLoader__.load({
                         key: row.commit.hash,
                         type: 'button',
                         className: 'dsh-git-commit-row',
+                        title: `${row.commit.hash} · ${row.commit.author} · ${row.commit.date}`,
                         onClick: () => onOpen(row.commit.hash),
                       },
-                      h(GraphCell, { row, widest: layout.widest, height: 24 }),
-                      h('span', { className: 'dsh-git-hash' }, row.commit.hash.slice(0, 7)),
-                      h('span', { className: 'dsh-git-subject', title: row.commit.subject }, row.commit.subject),
-                      ...(row.commit.refs ?? []).slice(0, 2).map((ref, index) =>
+                      h(GraphCell, { row, widest: layout.widest, height: GRAPH_ROW }),
+                      h(
+                        'span',
+                        { className: 'dsh-git-commitmain' },
                         h(
                           'span',
-                          {
-                            key: `r${String(index)}`,
-                            className: /HEAD/.test(ref) ? 'dsh-git-ref head' : 'dsh-git-ref',
-                          },
-                          ref.replace('HEAD -> ', ''),
+                          { className: 'dsh-git-commitline' },
+                          ...(row.commit.refs ?? []).slice(0, 2).map((ref, index) =>
+                            h(
+                              'span',
+                              {
+                                key: `r${String(index)}`,
+                                className: /HEAD/.test(ref) ? 'dsh-git-ref head' : 'dsh-git-ref',
+                              },
+                              ref.replace('HEAD -> ', ''),
+                            ),
+                          ),
+                          h(
+                            'span',
+                            { className: 'dsh-git-subject', title: row.commit.subject },
+                            row.commit.subject,
+                          ),
+                        ),
+                        h(
+                          'span',
+                          { className: 'dsh-git-commitsub' },
+                          h(
+                            'span',
+                            { className: 'dsh-git-commitmeta' },
+                            `${row.commit.author} · ${commitWhen(row.commit.date)}`,
+                          ),
+                          h('span', { className: 'dsh-git-hash' }, row.commit.hash.slice(0, 7)),
                         ),
                       ),
                     ),
@@ -1864,9 +1929,13 @@ window.__ModuleLoader__.load({
       '.dsh-git-primary{flex:none;padding:5px 12px;border:0;border-radius:6px;background:var(--dsw-alias-brand-primary);color:var(--dsw-alias-bg-base);font:inherit;font-size:12px;font-weight:500;white-space:nowrap;cursor:pointer}',
       '.dsh-git-primary:hover:not(:disabled){opacity:.9}',
       '.dsh-git-primary:disabled{opacity:.5;cursor:default}',
-      '.dsh-git-graph{flex:none}',
-      '.dsh-git-commit-row{display:flex;align-items:center;gap:8px;width:100%;min-width:0;box-sizing:border-box;padding:2px 10px 2px 4px;border:0;background:0 0;color:inherit;font:inherit;text-align:left;cursor:pointer}',
+      '.dsh-git-commit-row{display:flex;align-items:center;gap:8px;width:100%;min-width:0;box-sizing:border-box;height:42px;padding:0 10px 0 4px;border:0;background:0 0;color:inherit;font:inherit;text-align:left;cursor:pointer}',
       '.dsh-git-commit-row:hover{background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2))}',
+      '.dsh-git-commitmain{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:1px}',
+      '.dsh-git-commitline{display:flex;align-items:center;gap:4px;min-width:0}',
+      '.dsh-git-commitsub{display:flex;align-items:center;gap:8px;min-width:0;color:var(--dsw-alias-label-secondary);font-size:11px}',
+      '.dsh-git-commitmeta{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.dsh-git-graph{flex:none;display:block}',
       '.dsh-git-hash{flex:none;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;color:var(--dsw-alias-label-secondary)}',
       '.dsh-git-subject{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
       '.dsh-git-ref{flex:none;max-width:90px;padding:0 5px;border-radius:999px;font-size:10px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
