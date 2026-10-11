@@ -2519,7 +2519,8 @@ window.__ModuleLoader__.load({
               const extra =
                 action === 'push' && !hasUpstream
                   ? {
-                      remote: remotes.length > 0 ? remotes[0].name : 'origin',
+                      // The Host may still be the older build that returned names only.
+                      remote: remotes.length > 0 ? (remotes[0].name ?? remotes[0]) : 'origin',
                       branch: status.branch ?? undefined,
                       setUpstream: true,
                     }
