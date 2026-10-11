@@ -31,35 +31,11 @@ USTC Tokenworks 的**会话右侧栏 Git 面板**：改动清单、统一 diff�
 
 需要 **USTC Tokenworks**（Web 端）与 **git ≥ 2.23**（用到了 `git switch`）。
 
-**把下面这段直接发给 USTC Tokenworks 里的 AI 助手**，它会装好、自己验证，再告诉你要不要刷新页面：
+把仓库链接丢给 USTC Tokenworks 里的 AI 助手，让它帮你装：
 
-````
-请帮我把 Git 面板插件（@local/tokenworks-git-panel）装到当前 profile，并验证它真的能用。
+`https://github.com/charienustc/Tokenworks-git`
 
-1. 先看 profile 里已有的 bundle（plugin_manager 的 list_bundles）。如果已经装了
-   @local/tokenworks-git-panel，不要重复安装——先告诉我它指向哪里，等我决定。
-2. 安装：plugin_manager，action = install_bundle，
-   target = github:charienustc/Tokenworks-git
-   如果访问不了 GitHub，改用 target = git+https://git.ustc.edu.cn/Charien/tokenworks-git-panel.git
-   （注意：gitlab: 这种简写指向的是 gitlab.com，不是校内 GitLab。）
-   这个动作会改 profile，需要批准就正常请求批准。不要手改 profile 的 package.json 或
-   cordis.patch.yml，也不要在 profile 目录里跑 pnpm——install_bundle 会自己处理。
-3. 读返回值：只有 application 是 applied 才算装好，把 warnings 原文贴给我。
-4. 验证宿主半：对当前 Web 服务（地址见环境变量 DSH_WEB_URL）的 /git-panel/status 和
-   /git-panel/nope 各发一个 GET，期望分别是 401 和 404——前者说明路由已注册，后者说明
-   没把不存在的路径也接上。
-5. 验证客户端半：用 cordis_inspect_query 查客户端 Slot sidebar.right.pane.tab，
-   确认其中有 key 为 @local/tokenworks-git-panel/tab 且 active 的注册。
-6. 顺便确认 git --version ≥ 2.23。
-7. 最后用一段话告诉我：装的是哪个来源、application 是什么、第 4 步两个状态码、
-   以及我需要做什么（要不要刷新页面或重启）。
-````
-
-然后打开：右侧栏 `+` → **Git**，或点会话标题栏上的 Git 图标。工作区不是 git 仓库时会明确提示。装好后这个 profile 的每个会话都能用。
-
-想自己装：`install_bundle` 的 `target` 填 `github:charienustc/Tokenworks-git`，或用**绝对路径**指向本地克隆目录（那种装法是链接，改完 `client.js` 刷新页面即生效）。卸载：`remove_bundle`，`target` 填 `@local/tokenworks-git-panel`。
-
-> 改了插件代码要重新加载：`client.js` 刷新页面即可，`index.js` / `lib/git.js` 需要重启 USTC Tokenworks。
+装好后在会话里打开：右侧栏 `+` → **Git**，或点会话标题栏上的 Git 图标。
 
 > 改了插件代码要重新加载：`client.js` 刷新页面即可，`index.js` / `lib/git.js` 需要重启 USTC Tokenworks。
 
