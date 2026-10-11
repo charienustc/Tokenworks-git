@@ -148,7 +148,7 @@ Host 74 条 + Client 149 条断言。前者对着临时仓库跑真实 git（含
 - [x] 冲突处理：冲突单独成组、显示含 `<<<<<<<` 标记的当前内容、顶部横幅说明哪个操作未结束、逐操作说明后果的「放弃」确认
 - [x] 安全边界：信任栅栏、工作区栅栏、rev / ref / 路径白名单（拒绝选项注入与通配展开）、只读栅栏、写操作串行、超时单独映射
 - [x] 一轮完整审计的修复：`reset --hard` 选项注入、`f[1].txt` 误伤邻居 `f1.txt`、非 ASCII 路径被转义、合并提交的组合差异读不了、提交图菱形接错提交点、重复的批量按钮、死 locale 键
-- [x] 文档：本 README、[手动测试流程](docs/manual-test.md)、banner 与 LICENSE
+- [x] 文档：本 README、banner 与 LICENSE
 - [x] 测试：Host 74 + Client 147 条断言（真实 git 与微型 React 双轨）
 - [x] 双远程镜像：`git push origin` 一次同推 GitHub 与校内 GitLab
 

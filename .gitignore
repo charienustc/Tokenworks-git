@@ -3,3 +3,6 @@ node_modules/
 .DS_Store
 .smoke/
 .smoke-io/
+
+# Local development notes: kept on disk, deliberately not published.
+docs/manual-test.md
