@@ -1732,9 +1732,11 @@ window.__ModuleLoader__.load({
         'div',
         { key: 'tabs', className: 'dsh-git-tabs', role: 'tablist' },
         ...[
+          // Only the change count is actionable; list lengths for history and
+          // branches are noise, so those tabs carry no badge.
           { id: 'changes', label: t('tab.changes'), count: status.changes.total },
-          { id: 'history', label: t('tab.history'), count: (history.commits ?? []).length },
-          { id: 'branches', label: t('tab.branches'), count: (branches.refs ?? []).length },
+          { id: 'history', label: t('tab.history') },
+          { id: 'branches', label: t('tab.branches') },
         ].map((entry) =>
           h(
             'button',
