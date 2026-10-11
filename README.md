@@ -31,8 +31,22 @@ USTC Tokenworks 的**会话右侧栏 Git 面板**：改动清单、统一 diff�
 
 需要 **USTC Tokenworks**（Web 端）与 **git ≥ 2.23**（用到了 `git switch`）。
 
+把仓库放到一个**稳定目录**——插件长期以这个目录为准，不要放在会被清理的临时目录里：
+
 ```
-plugin_manager install_bundle  target = F:\dsh-git
+git clone git@github.com:charienustc/Tokenworks-git.git <你的目录>
+```
+
+然后用 `plugin_manager` 安装。`target` 不限于本地路径，也可以直接给远端地址：
+
+| `target` | 说明 |
+| --- | --- |
+| `<克隆目录>`（**绝对路径**） | 开发用。装的是链接，改完 `client.js` 刷新页面即生效 |
+| `github:charienustc/Tokenworks-git` | 从 GitHub 装快照，更新要重新安装一次 |
+| `git+https://git.ustc.edu.cn/Charien/tokenworks-git-panel.git` | 从内网 GitLab 装快照 |
+
+```
+plugin_manager install_bundle  target = <克隆目录的绝对路径>
 ```
 
 在会话里打开：右侧栏 `+` → **Git**，或点会话标题栏上的 Git 图标。工作区不是 git 仓库时会明确提示。

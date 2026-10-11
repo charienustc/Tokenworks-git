@@ -4,6 +4,11 @@
   "private": true,
   "type": "module",
   "description": "Session right-Sidebar Git panel: changes, diffs, commit graph, staging and commit.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/charienustc/Tokenworks-git.git"
+  },
   "scripts": {
     "smoke": "node tools/smoke.mjs",
     "client-smoke": "node tools/client-smoke.mjs",
@@ -24,6 +29,7 @@
     "index.js",
     "client.js",
     "lib/*.js",
+    "cordis.patch.yml",
     "icon.svg",
     "locale/*.json"
   ],
