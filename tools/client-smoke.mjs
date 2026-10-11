@@ -1,7 +1,7 @@
 /**
  * Client smoke test: drives the panel's browser half (`client.js`) against a
  * canned Host API, using a miniature React runtime, so the rendering, the
- * hooks and the write flows are exercised without the Harness page.
+ * hooks and the write flows are exercised without the USTC Tokenworks page.
  *
  * The runtime renders function components into a plain element tree, keeps
  * hook state per component instance, flushes effects with their cleanups, and
@@ -242,7 +242,7 @@ function createHarness(options = {}) {
   }
 
   // --- miniature React --------------------------------------------------------
-  const Fragment = Symbol('dsh-fragment');
+  const Fragment = Symbol('tw-fragment');
   const hooks = new Map(); // instance key -> hook slots
   let currentInstance = null;
   let hookCursor = 0;
@@ -597,7 +597,7 @@ function postTo(harness, path) {
   check('ready: header shows the upstream', bodyText.includes('origin/main'));
   check('ready: header shows ahead/behind', bodyText.includes('↑1') && bodyText.includes('↓2'));
 
-  const tabs = h.byClass('dsh-git-tab');
+  const tabs = h.byClass('tw-git-tab');
   check('ready: three tabs render', tabs.length === 3, tabs.length);
   check('ready: changes tab carries the total count', h.text(tabs[0]).includes('4'));
 
@@ -607,24 +607,24 @@ function postTo(harness, path) {
   const outlined = (cls) => new RegExp(`\\.${cls}\\{[^}]*border:`).test(css);
   check(
     'style: the pill controls carry an outline',
-    ['dsh-git-ghost', 'dsh-git-batch', 'dsh-git-rowact', 'dsh-git-fileact', 'dsh-git-tab', 'dsh-git-tool'].every(outlined),
-    ['dsh-git-ghost', 'dsh-git-batch', 'dsh-git-rowact', 'dsh-git-fileact', 'dsh-git-tab', 'dsh-git-tool']
+    ['tw-git-ghost', 'tw-git-batch', 'tw-git-rowact', 'tw-git-fileact', 'tw-git-tab', 'tw-git-tool'].every(outlined),
+    ['tw-git-ghost', 'tw-git-batch', 'tw-git-rowact', 'tw-git-fileact', 'tw-git-tab', 'tw-git-tool']
       .filter((cls) => !outlined(cls))
       .join(','),
   );
   check(
     'style: row buttons keep a hover surface instead of a border',
-    /\.dsh-git-dirrow:hover\{[^}]*background:/.test(css) && /\.dsh-git-commit-row:hover\{[^}]*background:/.test(css),
+    /\.tw-git-dirrow:hover\{[^}]*background:/.test(css) && /\.tw-git-commit-row:hover\{[^}]*background:/.test(css),
   );
 
-  check('ready: toolbar shows the total', h.text(h.byClass('dsh-git-toolbar')[0]).includes('4 个改动'));
-  const toolbarNode = h.byClass('dsh-git-toolbar')[0];
+  check('ready: toolbar shows the total', h.text(h.byClass('tw-git-toolbar')[0]).includes('4 个改动'));
+  const toolbarNode = h.byClass('tw-git-toolbar')[0];
   const toolbarButtons = [h.byText('全部暂存'), h.byText('全部取消暂存')]
     .flat()
     .filter((node) => h.contains(toolbarNode, node));
   check('ready: batch stage/unstage buttons render', toolbarButtons.length === 2, toolbarButtons.length);
 
-  const heads = h.byClass('dsh-git-sectionhead').map((node) => h.text(node));
+  const heads = h.byClass('tw-git-sectionhead').map((node) => h.text(node));
   check(
     'ready: change groups render with counts',
     heads.some((label) => label.includes('已暂存') && label.includes('1')) &&
@@ -633,7 +633,7 @@ function postTo(harness, path) {
     JSON.stringify(heads),
   );
 
-  const dirLabels = h.byClass('dsh-git-dirrow').map((node) => h.text(node));
+  const dirLabels = h.byClass('tw-git-dirrow').map((node) => h.text(node));
   check(
     'ready: directory rows group the files',
     dirLabels.some((label) => label.includes('src')) &&
@@ -643,36 +643,36 @@ function postTo(harness, path) {
   );
 
   // Select a file and inspect the diff.
-  const fileRows = h.byClass('dsh-git-filemain');
+  const fileRows = h.byClass('tw-git-filemain');
   check('ready: file rows render', fileRows.length === 4, fileRows.length);
   h.click(fileRows[0]); // staged src/app.ts
   await h.settle();
 
-  const diffHead = h.byClass('dsh-git-diffhead')[0];
+  const diffHead = h.byClass('tw-git-diffhead')[0];
   check('diff: header shows the selected path', h.text(diffHead).includes('src/app.ts'));
 
-  const hunkText = h.text(h.byClass('dsh-git-hunkrow')[0]);
+  const hunkText = h.text(h.byClass('tw-git-hunkrow')[0]);
   check('diff: hunk header renders', hunkText.includes('@@ -1,3 +1,3 @@'), hunkText);
 
-  const wordMarks = h.byClass('dsh-git-word').map((node) => h.text(node));
+  const wordMarks = h.byClass('tw-git-word').map((node) => h.text(node));
   check('diff: word-level marks highlight the changed word', wordMarks.includes('1') && wordMarks.includes('42'), JSON.stringify(wordMarks));
 
-  const lnoCells = h.byClass('dsh-git-lno').map((node) => h.text(node));
+  const lnoCells = h.byClass('tw-git-lno').map((node) => h.text(node));
   check('diff: line numbers render in the gutter', lnoCells.includes('1') && lnoCells.includes('3'), JSON.stringify(lnoCells.slice(0, 6)));
 
   // Fold and unfold the hunk.
-  const beforeLines = h.byClass('dsh-git-line').length;
-  const hunkButton = h.byClass('dsh-git-hunkbtn')[0];
+  const beforeLines = h.byClass('tw-git-line').length;
+  const hunkButton = h.byClass('tw-git-hunkbtn')[0];
   h.click(hunkButton);
   await h.settle();
-  check('diff: folding hides the hunk lines', h.byClass('dsh-git-line').length === 0 && h.byClass('dsh-git-hunkrow').length === 1);
-  h.click(h.byClass('dsh-git-hunkbtn')[0]);
+  check('diff: folding hides the hunk lines', h.byClass('tw-git-line').length === 0 && h.byClass('tw-git-hunkrow').length === 1);
+  h.click(h.byClass('tw-git-hunkbtn')[0]);
   await h.settle();
-  check('diff: unfolding restores the hunk lines', h.byClass('dsh-git-line').length === beforeLines);
+  check('diff: unfolding restores the hunk lines', h.byClass('tw-git-line').length === beforeLines);
 
   // Stage one file through its row action.
   const stageButtons = h
-    .byClass('dsh-git-fileact')
+    .byClass('tw-git-fileact')
     .filter((node) => h.text(node) === '暂存');
   check('ready: per-file stage buttons render', stageButtons.length === 3, stageButtons.length);
   h.click(stageButtons[0]); // first unstaged entry: src/app.ts
@@ -698,13 +698,13 @@ function postTo(harness, path) {
   );
 
   // Commit with Ctrl+Enter.
-  const textarea = h.byClass('dsh-git-commit').length > 0 ? h.all().find((node) => node.type === 'textarea') : undefined;
+  const textarea = h.byClass('tw-git-commit').length > 0 ? h.all().find((node) => node.type === 'textarea') : undefined;
   check('commit: textarea renders', textarea !== undefined);
-  const primary = h.byClass('dsh-git-primary')[0];
+  const primary = h.byClass('tw-git-primary')[0];
   check('commit: submit is disabled without a message', primary !== undefined && primary.props.disabled === true);
   textarea.props.onChange({ target: { value: 'polish pass' } });
   await h.settle();
-  const ready = h.byClass('dsh-git-primary')[0];
+  const ready = h.byClass('tw-git-primary')[0];
   check('commit: submit label counts the staged files', h.text(ready).includes('提交 1 个文件'), h.text(ready));
   // The primary path is the Ctrl/⌘+Enter shortcut on the draft itself. The tree
   // re-rendered after the change, so the textarea must be re-queried: its old
@@ -724,12 +724,12 @@ function postTo(harness, path) {
   check('commit: the draft is cleared', h.all().find((node) => node.type === 'textarea').props.value === '');
 
   // --- discard: tracked files only, always behind a confirmation ---------------
-  const discardButtons = h.byClass('dsh-git-fileact').filter((node) => h.text(node) === '放弃');
+  const discardButtons = h.byClass('tw-git-fileact').filter((node) => h.text(node) === '放弃');
   check('changes: only tracked, unstaged files offer discard', discardButtons.length === 2, discardButtons.length);
 
   h.click(discardButtons[0]);
   await h.settle();
-  const discardDialog = h.byClass('dsh-git-dialog')[0];
+  const discardDialog = h.byClass('tw-git-dialog')[0];
   check(
     'discard: a confirmation dialog appears first',
     discardDialog !== undefined && h.text(discardDialog).includes('无法恢复'),
@@ -738,19 +738,19 @@ function postTo(harness, path) {
   const discardDialogButtons = h.descendants(discardDialog, (node) => node.type === 'button');
   check(
     'discard: the dialog offers cancel and a danger action',
-    discardDialogButtons.length === 2 && h.hasClass(discardDialogButtons[1], 'dsh-git-danger'),
+    discardDialogButtons.length === 2 && h.hasClass(discardDialogButtons[1], 'tw-git-danger'),
   );
 
   h.click(discardDialogButtons[0]);
   await h.settle();
   check(
     'discard: cancelling closes the dialog without writing',
-    h.byClass('dsh-git-dialog').length === 0 && postTo(h, '/discard') === undefined,
+    h.byClass('tw-git-dialog').length === 0 && postTo(h, '/discard') === undefined,
   );
 
-  h.click(h.byClass('dsh-git-fileact').filter((node) => h.text(node) === '放弃')[0]);
+  h.click(h.byClass('tw-git-fileact').filter((node) => h.text(node) === '放弃')[0]);
   await h.settle();
-  h.click(h.descendants(h.byClass('dsh-git-dialog')[0], (node) => node.type === 'button')[1]);
+  h.click(h.descendants(h.byClass('tw-git-dialog')[0], (node) => node.type === 'button')[1]);
   await h.settle();
   const discardCall = postTo(h, '/discard');
   check(
@@ -762,7 +762,7 @@ function postTo(harness, path) {
 
   h.click(h.byText('全部放弃')[0]);
   await h.settle();
-  h.click(h.descendants(h.byClass('dsh-git-dialog')[0], (node) => node.type === 'button')[1]);
+  h.click(h.descendants(h.byClass('tw-git-dialog')[0], (node) => node.type === 'button')[1]);
   await h.settle();
   const discardAllCall = postTo(h, '/discard');
   check(
@@ -774,7 +774,7 @@ function postTo(harness, path) {
   // The notice dismisses itself after a few seconds.
   h.advance(5000);
   await h.settle();
-  check('notice: auto-dismisses after its timeout', h.byClass('dsh-git-banner').length === 0);
+  check('notice: auto-dismisses after its timeout', h.byClass('tw-git-banner').length === 0);
 }
 
 // ==============================================================================
@@ -786,7 +786,7 @@ function postTo(harness, path) {
 
   h.click(h.byText('历史')[0]);
   await h.settle();
-  const rows = h.byClass('dsh-git-commit-row');
+  const rows = h.byClass('tw-git-commit-row');
   check('history: two commits render', rows.length === 2, rows.length);
   check('history: the row shows the short hash and subject', h.text(rows[0]).includes('abc1234') && h.text(rows[0]).includes('second commit'));
   check('history: the HEAD ref chip renders the branch name', h.text(rows[0]).includes('main'));
@@ -807,7 +807,7 @@ function postTo(harness, path) {
   check('history: the dot is solid on its lane', dot !== undefined && typeof dot.props.fill === 'string' && dot.props.fill.startsWith('var('), dot && dot.props.fill);
 
   // --- remote sync from the history toolbar ------------------------------------
-  const historyToolbar = h.byClass('dsh-git-toolbar')[0];
+  const historyToolbar = h.byClass('tw-git-toolbar')[0];
   check(
     'history: the toolbar carries fetch, pull and push',
     ['获取', '拉取', '推送'].every((label) => h.text(historyToolbar).includes(label)),
@@ -819,13 +819,13 @@ function postTo(harness, path) {
   const fetchCall = postTo(h, '/sync');
   check(
     'fetch: runs without a prompt',
-    fetchCall !== undefined && fetchCall.body.action === 'fetch' && h.byClass('dsh-git-dialog').length === 0,
+    fetchCall !== undefined && fetchCall.body.action === 'fetch' && h.byClass('tw-git-dialog').length === 0,
     JSON.stringify(fetchCall && fetchCall.body),
   );
 
   h.click(h.byText('推送')[0]);
   await h.settle();
-  const pushDialog = h.byClass('dsh-git-dialog')[0];
+  const pushDialog = h.byClass('tw-git-dialog')[0];
   check('push: asks before publishing', pushDialog !== undefined && h.text(pushDialog).includes('推送到远端'));
   h.click(h.descendants(pushDialog, (node) => node.type === 'button')[1]);
   await h.settle();
@@ -839,14 +839,14 @@ function postTo(harness, path) {
   h.click(rows[0]);
   await h.settle();
   check('history: detail shows the message block', h.text().includes('body line'));
-  const fileRows = h.byClass('dsh-git-filehead');
+  const fileRows = h.byClass('tw-git-filehead');
   check('history: detail lists one header per changed file', fileRows.length === 2, fileRows.length);
   check('history: detail header names the file', h.text(fileRows[0]).includes('src/app.ts'));
   check('history: detail shows the per-file stat', h.text(fileRows[0]).includes('+2 −1'), h.text(fileRows[0]));
-  check('history: detail renders the patch with a gutter', h.byClass('dsh-git-word').length > 0 || h.byClass('dsh-git-line').length > 0);
+  check('history: detail renders the patch with a gutter', h.byClass('tw-git-word').length > 0 || h.byClass('tw-git-line').length > 0);
 
   // --- commit detail actions ---------------------------------------------------
-  const detailActions = h.byClass('dsh-git-actions')[0];
+  const detailActions = h.byClass('tw-git-actions')[0];
   check(
     'history: the detail offers the commit actions',
     detailActions !== undefined &&
@@ -856,7 +856,7 @@ function postTo(harness, path) {
 
   h.click(h.byText('拣选')[0]);
   await h.settle();
-  const pickDialog = h.byClass('dsh-git-dialog')[0];
+  const pickDialog = h.byClass('tw-git-dialog')[0];
   check('cherry-pick: asks before applying', pickDialog !== undefined && h.text(pickDialog).includes('应用到当前分支'));
   h.click(h.descendants(pickDialog, (node) => node.type === 'button')[1]);
   await h.settle();
@@ -869,7 +869,7 @@ function postTo(harness, path) {
 
   h.click(h.byText('软重置')[0]);
   await h.settle();
-  h.click(h.descendants(h.byClass('dsh-git-dialog')[0], (node) => node.type === 'button')[1]);
+  h.click(h.descendants(h.byClass('tw-git-dialog')[0], (node) => node.type === 'button')[1]);
   await h.settle();
   const resetCall = postTo(h, '/undo');
   check(
@@ -880,7 +880,7 @@ function postTo(harness, path) {
 
   h.click(h.byText('分支')[0]);
   await h.settle();
-  const heads = h.byClass('dsh-git-sectionhead').map((node) => h.text(node));
+  const heads = h.byClass('tw-git-sectionhead').map((node) => h.text(node));
   check(
     'branches: local, remote and tag sections render',
     heads.some((label) => label.includes('本地分支')) &&
@@ -901,7 +901,7 @@ function postTo(harness, path) {
   h.click(h.byText('分支')[0]);
   await h.settle();
 
-  const toolbar = h.byClass('dsh-git-toolbar')[0];
+  const toolbar = h.byClass('tw-git-toolbar')[0];
   check(
     'branches: the toolbar offers both create forms',
     h.text(toolbar).includes('新建分支') && h.text(toolbar).includes('新建标签'),
@@ -927,7 +927,7 @@ function postTo(harness, path) {
 
   // A non-current branch carries the switch / merge / delete cluster.
   const featureRow = h
-    .byClass('dsh-git-row')
+    .byClass('tw-git-row')
     .find((node) => h.text(node).includes('feature') && h.text(node).includes('切换'));
   check(
     'branch: a non-current branch offers switch, merge and delete',
@@ -937,8 +937,8 @@ function postTo(harness, path) {
 
   h.click(h.descendants(featureRow, (node) => node.type === 'button' && h.text(node) === '切换')[0]);
   await h.settle();
-  check('branch: switching asks first', h.byClass('dsh-git-dialog').length === 1);
-  h.click(h.descendants(h.byClass('dsh-git-dialog')[0], (node) => node.type === 'button')[1]);
+  check('branch: switching asks first', h.byClass('tw-git-dialog').length === 1);
+  h.click(h.descendants(h.byClass('tw-git-dialog')[0], (node) => node.type === 'button')[1]);
   await h.settle();
   const checkoutCall = postTo(h, '/checkout');
   check(
@@ -948,11 +948,11 @@ function postTo(harness, path) {
   );
 
   const rowAgain = h
-    .byClass('dsh-git-row')
+    .byClass('tw-git-row')
     .find((node) => h.text(node).includes('feature') && h.text(node).includes('删除'));
   h.click(h.descendants(rowAgain, (node) => node.type === 'button' && h.text(node) === '删除')[0]);
   await h.settle();
-  const deleteDialog = h.byClass('dsh-git-dialog')[0];
+  const deleteDialog = h.byClass('tw-git-dialog')[0];
   check(
     'branch: deleting warns that it is a safe delete',
     deleteDialog !== undefined && h.text(deleteDialog).includes('安全删除'),
@@ -981,10 +981,10 @@ function postTo(harness, path) {
     JSON.stringify(tagCall && tagCall.body),
   );
 
-  const tagRow = h.byClass('dsh-git-row').find((node) => h.text(node).includes('v0.1.0'));
+  const tagRow = h.byClass('tw-git-row').find((node) => h.text(node).includes('v0.1.0'));
   h.click(h.descendants(tagRow, (node) => node.type === 'button' && h.text(node) === '删除')[0]);
   await h.settle();
-  h.click(h.descendants(h.byClass('dsh-git-dialog')[0], (node) => node.type === 'button')[1]);
+  h.click(h.descendants(h.byClass('tw-git-dialog')[0], (node) => node.type === 'button')[1]);
   await h.settle();
   const tagDeleteCall = postTo(h, '/tag-delete');
   check(
@@ -1026,11 +1026,11 @@ function postTo(harness, path) {
   });
   await h.mountBody();
   check('state: a failing status surfaces the error', h.text().includes('出错了') && h.text().includes('boom'));
-  const retry = h.byClass('dsh-git-ghost').find((node) => h.text(node) === '重试');
+  const retry = h.byClass('tw-git-ghost').find((node) => h.text(node) === '重试');
   check('state: the retry button renders', retry !== undefined);
   h.click(retry);
   await h.settle();
-  check('state: retry recovers to the ready view', h.text().includes('demo') && h.byClass('dsh-git-file').length === 4);
+  check('state: retry recovers to the ready view', h.text().includes('demo') && h.byClass('tw-git-file').length === 4);
 }
 
 {
@@ -1046,14 +1046,14 @@ function postTo(harness, path) {
   // The header button opens the tab kind.
   const Header = h.headerComponent();
   h.render.component = Header;
-  h.render.props = { t: h.t, openTab: () => h.captured.opened.push('dshGitPanel') };
+  h.render.props = { t: h.t, openTab: () => h.captured.opened.push('tokenworksGitPanel') };
   h.render();
   const button = h.all().find((entry) => entry.props && typeof entry.props.onClick === 'function');
   h.click(button);
-  check('header: the button opens the Git tab', h.captured.opened.includes('dshGitPanel'));
+  check('header: the button opens the Git tab', h.captured.opened.includes('tokenworksGitPanel'));
   check(
     'header: the button carries the same pill outline as the panel',
-    /\.dsh-git-openbtn\{[^}]*border:\.5px solid/.test(h.text()),
+    /\.tw-git-openbtn\{[^}]*border:\.5px solid/.test(h.text()),
   );
 }
 

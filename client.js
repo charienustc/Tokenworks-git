@@ -4,13 +4,13 @@
  *
  * The body reads the Session's workspace directory from the framework's Session
  * snapshot and talks to the Host half over the composition's own HTTP carrier.
- * Rendering follows the Harness UI rules: only framework props and `react` are
- * imported, every colour is a theme token, all copy goes through the locale
- * service, and each registration is owned by an effect so unloading the plugin
- * removes it.
+ * Rendering follows the USTC Tokenworks UI rules: only framework props and
+ * `react` are imported, every colour is a theme token, all copy goes through the
+ * locale service, and each registration is owned by an effect so unloading the
+ * plugin removes it.
  */
 window.__ModuleLoader__.load({
-  id: '@local/dsh-git-panel',
+  id: '@local/tokenworks-git-panel',
   factory(require) {
     const React = require('react');
     const h = React.createElement;
@@ -22,9 +22,9 @@ window.__ModuleLoader__.load({
     /** Locale namespace owned by this plugin. */
     const NS = 'git-panel';
     /** This implementation's identity in the tab system, and its body/title key. */
-    const TAB_ID = '@local/dsh-git-panel/tab';
+    const TAB_ID = '@local/tokenworks-git-panel/tab';
     /** The page type the tab strip and the header button open. */
-    const TAB_KIND = 'dshGitPanel';
+    const TAB_KIND = 'tokenworksGitPanel';
     /** Host route prefix, matching the Host half. */
     const API = '/git-panel';
     /** Poll cadence while the tab is on screen. */
@@ -388,11 +388,11 @@ window.__ModuleLoader__.load({
     /** CSS class for one status letter. */
     function markClass(letter) {
       const upper = String(letter || '?').toUpperCase();
-      if (upper === 'A') return 'dsh-git-mark a';
-      if (upper === 'D') return 'dsh-git-mark d';
-      if (upper === 'U') return 'dsh-git-mark u';
-      if (upper === '?') return 'dsh-git-mark q';
-      return 'dsh-git-mark m';
+      if (upper === 'A') return 'tw-git-mark a';
+      if (upper === 'D') return 'tw-git-mark d';
+      if (upper === 'U') return 'tw-git-mark u';
+      if (upper === '?') return 'tw-git-mark q';
+      return 'tw-git-mark m';
     }
 
     /**
@@ -723,7 +723,7 @@ window.__ModuleLoader__.load({
       return h(
         'svg',
         {
-          className: 'dsh-git-graph',
+          className: 'tw-git-graph',
           width,
           height,
           viewBox: `0 0 ${String(width)} ${String(height)}`,
@@ -756,7 +756,7 @@ window.__ModuleLoader__.load({
       if (line.segments === null || line.segments === undefined) return line.text.slice(1);
       return line.segments.map((part, index) =>
         part.changed
-          ? h('mark', { key: String(index), className: 'dsh-git-word' }, part.text)
+          ? h('mark', { key: String(index), className: 'tw-git-word' }, part.text)
           : h('span', { key: String(index) }, part.text),
       );
     }
@@ -775,9 +775,9 @@ window.__ModuleLoader__.load({
       useEffect(() => {
         setFolded(new Set());
       }, [resetKey]);
-      if (binary === true) return h('p', { className: 'dsh-git-note' }, t('diff.binary'));
+      if (binary === true) return h('p', { className: 'tw-git-note' }, t('diff.binary'));
       if (text === '' || text === undefined || text === null) {
-        return h('p', { className: 'dsh-git-note' }, empty);
+        return h('p', { className: 'tw-git-note' }, empty);
       }
       const nodes = [];
       let rendered = 0;
@@ -792,11 +792,11 @@ window.__ModuleLoader__.load({
       const line = (key, kind, oldNo, newNo, sign, content) =>
         h(
           'div',
-          { key, className: `dsh-git-line ${kind}` },
-          h('span', { className: 'dsh-git-lno' }, oldNo === null ? '' : oldNo),
-          h('span', { className: 'dsh-git-lno' }, newNo === null ? '' : newNo),
-          h('span', { className: 'dsh-git-sign' }, sign),
-          h('span', { className: 'dsh-git-text' }, content),
+          { key, className: `tw-git-line ${kind}` },
+          h('span', { className: 'tw-git-lno' }, oldNo === null ? '' : oldNo),
+          h('span', { className: 'tw-git-lno' }, newNo === null ? '' : newNo),
+          h('span', { className: 'tw-git-sign' }, sign),
+          h('span', { className: 'tw-git-text' }, content),
         );
       const named = files.length > 1;
       for (let fileIndex = 0; fileIndex < files.length; fileIndex += 1) {
@@ -805,11 +805,11 @@ window.__ModuleLoader__.load({
           nodes.push(
             h(
               'div',
-              { key: `fh${String(fileIndex)}`, className: 'dsh-git-filehead' },
-              h('span', { className: 'dsh-git-filepath', title: file.path ?? '' }, file.path ?? '?'),
+              { key: `fh${String(fileIndex)}`, className: 'tw-git-filehead' },
+              h('span', { className: 'tw-git-filepath', title: file.path ?? '' }, file.path ?? '?'),
               h(
                 'span',
-                { className: 'dsh-git-filestat' },
+                { className: 'tw-git-filestat' },
                 t('diff.stat', { adds: file.adds, dels: file.dels }),
               ),
             ),
@@ -834,12 +834,12 @@ window.__ModuleLoader__.load({
           nodes.push(
             h(
               'div',
-              { key: `h${key}`, className: 'dsh-git-hunkrow' },
+              { key: `h${key}`, className: 'tw-git-hunkrow' },
               h(
                 'button',
                 {
                   type: 'button',
-                  className: 'dsh-git-hunkbtn',
+                  className: 'tw-git-hunkbtn',
                   title: isFolded ? t('diff.expand') : t('diff.collapse'),
                   'aria-label': isFolded ? t('diff.expand') : t('diff.collapse'),
                   'aria-expanded': isFolded ? 'false' : 'true',
@@ -847,7 +847,7 @@ window.__ModuleLoader__.load({
                 },
                 isFolded ? '▸' : '▾',
               ),
-              h('span', { className: 'dsh-git-hunktext' }, hunk.header),
+              h('span', { className: 'tw-git-hunktext' }, hunk.header),
             ),
           );
           if (isFolded) continue;
@@ -874,7 +874,7 @@ window.__ModuleLoader__.load({
         if (clipped) break;
       }
       if (clipped || truncated === true) {
-        nodes.push(h('p', { key: 'trunc', className: 'dsh-git-note' }, t('diff.truncated')));
+        nodes.push(h('p', { key: 'trunc', className: 'tw-git-note' }, t('diff.truncated')));
       }
       return h(React.Fragment, null, nodes);
     }
@@ -922,8 +922,8 @@ window.__ModuleLoader__.load({
      * outside the tab, so it cannot rely on the panel's stylesheet.
      */
     const OPEN_CSS = [
-      '.dsh-git-openbtn{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;border:.5px solid var(--dsw-alias-border-l1);border-radius:999px;background:0 0;color:var(--dsw-alias-label-secondary);cursor:pointer}',
-      '.dsh-git-openbtn:hover{border-color:var(--dsw-alias-label-secondary);background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2));color:var(--dsw-alias-label-primary)}',
+      '.tw-git-openbtn{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;border:.5px solid var(--dsw-alias-border-l1);border-radius:999px;background:0 0;color:var(--dsw-alias-label-secondary);cursor:pointer}',
+      '.tw-git-openbtn:hover{border-color:var(--dsw-alias-label-secondary);background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2));color:var(--dsw-alias-label-primary)}',
     ].join('');
 
     /** The button in the Session header that opens this tab. */
@@ -938,7 +938,7 @@ window.__ModuleLoader__.load({
           {
             key: 'button',
             type: 'button',
-            className: 'dsh-git-openbtn',
+            className: 'tw-git-openbtn',
             title: t('header.open'),
             'aria-label': t('header.open'),
             onClick: () => openTab(),
@@ -960,17 +960,17 @@ window.__ModuleLoader__.load({
       const { title, detail, retry, t } = props;
       return h(
         'div',
-        { className: 'dsh-git-state' },
+        { className: 'tw-git-state' },
         h(GitMark, { size: 26 }),
-        h('p', { className: 'dsh-git-statetitle' }, title),
+        h('p', { className: 'tw-git-statetitle' }, title),
         detail === undefined || detail === null || detail === ''
           ? null
-          : h('p', { className: 'dsh-git-statedetail', title: detail }, detail),
+          : h('p', { className: 'tw-git-statedetail', title: detail }, detail),
         retry === undefined || retry === null
           ? null
           : h(
               'button',
-              { type: 'button', className: 'dsh-git-ghost', onClick: retry },
+              { type: 'button', className: 'tw-git-ghost', onClick: retry },
               t('state.retry'),
             ),
       );
@@ -983,47 +983,47 @@ window.__ModuleLoader__.load({
       const meta = [];
       if (status.upstream !== null && status.upstream !== undefined) {
         meta.push(
-          h('span', { key: 'up', className: 'dsh-git-meta', title: status.upstream }, status.upstream),
+          h('span', { key: 'up', className: 'tw-git-meta', title: status.upstream }, status.upstream),
         );
       }
       if (status.ahead > 0) {
-        meta.push(h('span', { key: 'ahead', className: 'dsh-git-meta' }, `↑${String(status.ahead)}`));
+        meta.push(h('span', { key: 'ahead', className: 'tw-git-meta' }, `↑${String(status.ahead)}`));
       }
       if (status.behind > 0) {
-        meta.push(h('span', { key: 'behind', className: 'dsh-git-meta' }, `↓${String(status.behind)}`));
+        meta.push(h('span', { key: 'behind', className: 'tw-git-meta' }, `↓${String(status.behind)}`));
       }
       return h(
         'div',
-        { className: 'dsh-git-head' },
+        { className: 'tw-git-head' },
         h(
           'div',
-          { className: 'dsh-git-headrow' },
+          { className: 'tw-git-headrow' },
           h(
             'span',
-            { className: 'dsh-git-repo', title: `${t('state.workspace')}: ${String(status.root ?? '')}` },
+            { className: 'tw-git-repo', title: `${t('state.workspace')}: ${String(status.root ?? '')}` },
             repoName(status.root),
           ),
           h(
             'span',
-            { className: 'dsh-git-branch', title: branch },
+            { className: 'tw-git-branch', title: branch },
             h(GitMark, { size: 12 }),
-            h('span', { className: 'dsh-git-branchtext' }, branch),
+            h('span', { className: 'tw-git-branchtext' }, branch),
           ),
-          h('span', { className: 'dsh-git-spacer' }),
+          h('span', { className: 'tw-git-spacer' }),
           h(
             'button',
             {
               type: 'button',
-              className: 'dsh-git-tool',
+              className: 'tw-git-tool',
               title: busy ? t('state.refreshing') : t('state.refresh'),
               'aria-label': t('state.refresh'),
               disabled: busy,
               onClick: onRefresh,
             },
-            h('span', { className: 'dsh-git-spin', 'data-spin': busy ? 'true' : 'false' }, '⟳'),
+            h('span', { className: 'tw-git-spin', 'data-spin': busy ? 'true' : 'false' }, '⟳'),
           ),
         ),
-        meta.length === 0 ? null : h('div', { className: 'dsh-git-metarow' }, meta),
+        meta.length === 0 ? null : h('div', { className: 'tw-git-metarow' }, meta),
       );
     }
 
@@ -1043,7 +1043,7 @@ window.__ModuleLoader__.load({
         busy !== null || readOnly || noIdentity || stagedCount === 0 || message.trim() === '';
       return h(
         'div',
-        { className: 'dsh-git-commit' },
+        { className: 'tw-git-commit' },
         h('textarea', {
           value: message,
           placeholder: t('commit.placeholder'),
@@ -1060,13 +1060,13 @@ window.__ModuleLoader__.load({
         }),
         h(
           'div',
-          { className: 'dsh-git-commitrow' },
-          h('span', { className: 'dsh-git-hint', title: hint }, hint),
-          h('span', { className: 'dsh-git-spacer' }),
-          h('span', { className: 'dsh-git-kbd' }, t('commit.shortcut')),
+          { className: 'tw-git-commitrow' },
+          h('span', { className: 'tw-git-hint', title: hint }, hint),
+          h('span', { className: 'tw-git-spacer' }),
+          h('span', { className: 'tw-git-kbd' }, t('commit.shortcut')),
           h(
             'button',
-            { type: 'button', className: 'dsh-git-primary', disabled, onClick: onSubmit },
+            { type: 'button', className: 'tw-git-primary', disabled, onClick: onSubmit },
             busy === 'commit'
               ? t('commit.busy')
               : stagedCount > 0
@@ -1103,30 +1103,30 @@ window.__ModuleLoader__.load({
       } = props;
       const list = h(
         'div',
-        { key: 'list', className: selection === null ? 'dsh-git-scroll' : 'dsh-git-scroll split' },
+        { key: 'list', className: selection === null ? 'tw-git-scroll' : 'tw-git-scroll split' },
         groups.length === 0 || clean === true
           ? h(
               'div',
-              { className: 'dsh-git-state' },
-              h('p', { className: 'dsh-git-statetitle' }, t('empty.changesTitle')),
-              h('p', { className: 'dsh-git-statedetail' }, t('state.clean')),
+              { className: 'tw-git-state' },
+              h('p', { className: 'tw-git-statetitle' }, t('empty.changesTitle')),
+              h('p', { className: 'tw-git-statedetail' }, t('state.clean')),
             )
           : h(
               'div',
-              { className: 'dsh-git-toolbar' },
-              h('span', { className: 'dsh-git-toolbartext' }, t('changes.total', { n: total })),
-              h('span', { className: 'dsh-git-spacer' }),
+              { className: 'tw-git-toolbar' },
+              h('span', { className: 'tw-git-toolbartext' }, t('changes.total', { n: total })),
+              h('span', { className: 'tw-git-spacer' }),
               canUnstageAll
                 ? h(
                     'button',
-                    { key: 'unstage', type: 'button', className: 'dsh-git-ghost', disabled: busy !== null, onClick: onUnstageAll },
+                    { key: 'unstage', type: 'button', className: 'tw-git-ghost', disabled: busy !== null, onClick: onUnstageAll },
                     t('action.unstageAll'),
                   )
                 : null,
               canStageAll
                 ? h(
                     'button',
-                    { key: 'stage', type: 'button', className: 'dsh-git-ghost', disabled: busy !== null, onClick: onStageAll },
+                    { key: 'stage', type: 'button', className: 'tw-git-ghost', disabled: busy !== null, onClick: onStageAll },
                     t('action.stageAll'),
                   )
                 : null,
@@ -1136,7 +1136,7 @@ window.__ModuleLoader__.load({
                     {
                       key: 'discard',
                       type: 'button',
-                      className: 'dsh-git-ghost danger',
+                      className: 'tw-git-ghost danger',
                       disabled: busy !== null,
                       onClick: onDiscardAll,
                     },
@@ -1163,18 +1163,18 @@ window.__ModuleLoader__.load({
       if (selection === null) return list;
       const pane = h(
         'div',
-        { key: 'diff', className: 'dsh-git-diff' },
+        { key: 'diff', className: 'tw-git-diff' },
         h(
           'div',
-          { className: 'dsh-git-diffhead' },
+          { className: 'tw-git-diffhead' },
           h('span', { className: markClass(selection.letter) }, selection.letter),
-          h('span', { className: 'dsh-git-path', title: selection.path }, selection.path),
-          h('span', { className: 'dsh-git-spacer' }),
+          h('span', { className: 'tw-git-path', title: selection.path }, selection.path),
+          h('span', { className: 'tw-git-spacer' }),
           h(
             'button',
             {
               type: 'button',
-              className: 'dsh-git-tool',
+              className: 'tw-git-tool',
               title: t('action.close'),
               'aria-label': t('action.close'),
               onClick: onClose,
@@ -1184,11 +1184,11 @@ window.__ModuleLoader__.load({
         ),
         h(
           'div',
-          { className: 'dsh-git-code' },
+          { className: 'tw-git-code' },
           diff.phase === 'loading'
-            ? h('p', { className: 'dsh-git-note' }, t('state.loading'))
+            ? h('p', { className: 'tw-git-note' }, t('state.loading'))
             : diff.phase === 'error'
-              ? h('p', { className: 'dsh-git-note error' }, String(diff.error.message))
+              ? h('p', { className: 'tw-git-note error' }, String(diff.error.message))
               : diff.phase === 'ready' && diff.diff !== undefined && diff.diff !== null
                 ? h(DiffCode, {
                     text: diff.diff.text,
@@ -1227,15 +1227,15 @@ window.__ModuleLoader__.load({
         const subject = commit === null ? '' : String(commit.message).split('\n')[0];
         return h(
           'div',
-          { className: 'dsh-git-body' },
+          { className: 'tw-git-body' },
           h(
             'div',
-            { className: 'dsh-git-diffhead' },
+            { className: 'tw-git-diffhead' },
             h(
               'button',
               {
                 type: 'button',
-                className: 'dsh-git-tool',
+                className: 'tw-git-tool',
                 title: t('history.back'),
                 'aria-label': t('history.back'),
                 onClick: onBack,
@@ -1244,7 +1244,7 @@ window.__ModuleLoader__.load({
             ),
             h(
               'span',
-              { className: 'dsh-git-path' },
+              { className: 'tw-git-path' },
               commit === null
                 ? ''
                 : `${commit.hash.slice(0, 10)}${subject === '' ? '' : ` · ${subject}`}`,
@@ -1253,34 +1253,34 @@ window.__ModuleLoader__.load({
           detail.phase === 'loading'
             ? h(
                 'div',
-                { className: 'dsh-git-scroll' },
-                h('p', { className: 'dsh-git-note' }, t('state.loading')),
+                { className: 'tw-git-scroll' },
+                h('p', { className: 'tw-git-note' }, t('state.loading')),
               )
             : detail.phase === 'error'
               ? h(
                   'div',
-                  { className: 'dsh-git-scroll' },
-                  h('p', { className: 'dsh-git-note error' }, String(detail.error.message)),
+                  { className: 'tw-git-scroll' },
+                  h('p', { className: 'tw-git-note error' }, String(detail.error.message)),
                 )
               : h(
                   React.Fragment,
                   null,
                   h(
                     'div',
-                    { className: 'dsh-git-scroll split' },
+                    { className: 'tw-git-scroll split' },
                     h(
                       'div',
-                      { className: 'dsh-git-metablock' },
-                      h('div', { className: 'dsh-git-hint' }, `${commit.author} · ${commit.date}`),
-                      h('div', { className: 'dsh-git-message' }, commit.message),
+                      { className: 'tw-git-metablock' },
+                      h('div', { className: 'tw-git-hint' }, `${commit.author} · ${commit.date}`),
+                      h('div', { className: 'tw-git-message' }, commit.message),
                       h(
                         'div',
-                        { className: 'dsh-git-actions' },
+                        { className: 'tw-git-actions' },
                         h(
                           'button',
                           {
                             type: 'button',
-                            className: 'dsh-git-ghost',
+                            className: 'tw-git-ghost',
                             disabled: busy !== null,
                             onClick: () => onCherryPick(commit.hash),
                           },
@@ -1290,7 +1290,7 @@ window.__ModuleLoader__.load({
                           'button',
                           {
                             type: 'button',
-                            className: 'dsh-git-ghost',
+                            className: 'tw-git-ghost',
                             disabled: busy !== null,
                             onClick: () => onRevert(commit.hash),
                           },
@@ -1300,7 +1300,7 @@ window.__ModuleLoader__.load({
                           'button',
                           {
                             type: 'button',
-                            className: 'dsh-git-ghost',
+                            className: 'tw-git-ghost',
                             disabled: busy !== null,
                             onClick: () => onCheckoutCommit(commit.hash),
                           },
@@ -1310,7 +1310,7 @@ window.__ModuleLoader__.load({
                           'button',
                           {
                             type: 'button',
-                            className: 'dsh-git-ghost',
+                            className: 'tw-git-ghost',
                             disabled: busy !== null,
                             onClick: () => onReset(commit.hash, 'soft'),
                           },
@@ -1320,7 +1320,7 @@ window.__ModuleLoader__.load({
                           'button',
                           {
                             type: 'button',
-                            className: 'dsh-git-ghost',
+                            className: 'tw-git-ghost',
                             disabled: busy !== null,
                             onClick: () => onReset(commit.hash, 'mixed'),
                           },
@@ -1330,28 +1330,28 @@ window.__ModuleLoader__.load({
                     ),
                     h(
                       'div',
-                      { className: 'dsh-git-sectionhead' },
-                      h('span', { className: 'dsh-git-sectiontitle' }, t('history.files')),
-                      h('span', { className: 'dsh-git-count' }, files.length),
+                      { className: 'tw-git-sectionhead' },
+                      h('span', { className: 'tw-git-sectiontitle' }, t('history.files')),
+                      h('span', { className: 'tw-git-count' }, files.length),
                     ),
                     ...files.map((section, index) =>
                       h(
                         'div',
-                        { key: `f${String(index)}`, className: 'dsh-git-row' },
+                        { key: `f${String(index)}`, className: 'tw-git-row' },
                         h('span', { className: markClass(patchStatus(section)) }, patchStatus(section)),
                         h(
                           'span',
-                          { className: 'dsh-git-filename', title: section.path ?? '' },
+                          { className: 'tw-git-filename', title: section.path ?? '' },
                           section.path === null ? '?' : splitPath(section.path).name,
                         ),
                         h(
                           'span',
-                          { className: 'dsh-git-dirname' },
+                          { className: 'tw-git-dirname' },
                           section.path === null ? '' : splitPath(section.path).dir,
                         ),
                         h(
                           'span',
-                          { className: 'dsh-git-hint' },
+                          { className: 'tw-git-hint' },
                           t('diff.stat', { adds: section.adds, dels: section.dels }),
                         ),
                       ),
@@ -1359,10 +1359,10 @@ window.__ModuleLoader__.load({
                   ),
                   h(
                     'div',
-                    { className: 'dsh-git-diff' },
+                    { className: 'tw-git-diff' },
                     h(
                       'div',
-                      { className: 'dsh-git-code' },
+                      { className: 'tw-git-code' },
                       h(DiffCode, {
                         text: commit.patch,
                         binary: false,
@@ -1380,17 +1380,17 @@ window.__ModuleLoader__.load({
       const layout = layoutGraph(commits);
       return h(
         'div',
-        { className: 'dsh-git-body' },
+        { className: 'tw-git-body' },
         h(
           'div',
-          { className: 'dsh-git-toolbar' },
-          h('span', { className: 'dsh-git-toolbartext' }, t('history.count', { n: commits.length })),
-          h('span', { className: 'dsh-git-spacer' }),
+          { className: 'tw-git-toolbar' },
+          h('span', { className: 'tw-git-toolbartext' }, t('history.count', { n: commits.length })),
+          h('span', { className: 'tw-git-spacer' }),
           h(
             'button',
             {
               type: 'button',
-              className: 'dsh-git-ghost',
+              className: 'tw-git-ghost',
               disabled: busy !== null,
               onClick: () => onSync('fetch'),
             },
@@ -1400,7 +1400,7 @@ window.__ModuleLoader__.load({
             'button',
             {
               type: 'button',
-              className: 'dsh-git-ghost',
+              className: 'tw-git-ghost',
               disabled: busy !== null,
               onClick: () => onSync('pull'),
             },
@@ -1410,7 +1410,7 @@ window.__ModuleLoader__.load({
             'button',
             {
               type: 'button',
-              className: 'dsh-git-ghost',
+              className: 'tw-git-ghost',
               disabled: busy !== null,
               onClick: () => onSync('push'),
             },
@@ -1420,7 +1420,7 @@ window.__ModuleLoader__.load({
             'button',
             {
               type: 'button',
-              className: 'dsh-git-ghost',
+              className: 'tw-git-ghost',
               'data-on': allRefs ? 'true' : 'false',
               onClick: onToggleAll,
             },
@@ -1429,16 +1429,16 @@ window.__ModuleLoader__.load({
         ),
         h(
           'div',
-          { className: 'dsh-git-scroll' },
+          { className: 'tw-git-scroll' },
           history.phase === 'loading'
-            ? h('p', { className: 'dsh-git-note' }, t('history.loading'))
+            ? h('p', { className: 'tw-git-note' }, t('history.loading'))
             : history.phase === 'error'
-              ? h('p', { className: 'dsh-git-note error' }, String(history.error.message))
+              ? h('p', { className: 'tw-git-note error' }, String(history.error.message))
               : commits.length === 0
                 ? h(
                     'div',
-                    { className: 'dsh-git-state' },
-                    h('p', { className: 'dsh-git-statetitle' }, t('history.empty')),
+                    { className: 'tw-git-state' },
+                    h('p', { className: 'tw-git-statetitle' }, t('history.empty')),
                   )
                 : layout.rows.map((row) =>
                     h(
@@ -1446,42 +1446,42 @@ window.__ModuleLoader__.load({
                       {
                         key: row.commit.hash,
                         type: 'button',
-                        className: 'dsh-git-commit-row',
+                        className: 'tw-git-commit-row',
                         title: `${row.commit.hash} · ${row.commit.author} · ${row.commit.date}`,
                         onClick: () => onOpen(row.commit.hash),
                       },
                       h(GraphCell, { row, widest: layout.widest, height: GRAPH_ROW }),
                       h(
                         'span',
-                        { className: 'dsh-git-commitmain' },
+                        { className: 'tw-git-commitmain' },
                         h(
                           'span',
-                          { className: 'dsh-git-commitline' },
+                          { className: 'tw-git-commitline' },
                           ...(row.commit.refs ?? []).slice(0, 2).map((ref, index) =>
                             h(
                               'span',
                               {
                                 key: `r${String(index)}`,
-                                className: /HEAD/.test(ref) ? 'dsh-git-ref head' : 'dsh-git-ref',
+                                className: /HEAD/.test(ref) ? 'tw-git-ref head' : 'tw-git-ref',
                               },
                               ref.replace('HEAD -> ', ''),
                             ),
                           ),
                           h(
                             'span',
-                            { className: 'dsh-git-subject', title: row.commit.subject },
+                            { className: 'tw-git-subject', title: row.commit.subject },
                             row.commit.subject,
                           ),
                         ),
                         h(
                           'span',
-                          { className: 'dsh-git-commitsub' },
+                          { className: 'tw-git-commitsub' },
                           h(
                             'span',
-                            { className: 'dsh-git-commitmeta' },
+                            { className: 'tw-git-commitmeta' },
                             `${row.commit.author} · ${commitWhen(row.commit.date)}`,
                           ),
-                          h('span', { className: 'dsh-git-hash' }, row.commit.hash.slice(0, 7)),
+                          h('span', { className: 'tw-git-hash' }, row.commit.hash.slice(0, 7)),
                         ),
                       ),
                     ),
@@ -1496,27 +1496,27 @@ window.__ModuleLoader__.load({
       const { request, busy, onCancel, onConfirm, t } = props;
       return h(
         'div',
-        { className: 'dsh-git-overlay' },
+        { className: 'tw-git-overlay' },
         h(
           'div',
-          { className: 'dsh-git-dialog', role: 'dialog', 'aria-modal': 'true' },
-          h('p', { className: 'dsh-git-dialogtitle' }, request.title),
+          { className: 'tw-git-dialog', role: 'dialog', 'aria-modal': 'true' },
+          h('p', { className: 'tw-git-dialogtitle' }, request.title),
           request.detail === undefined || request.detail === null
             ? null
-            : h('p', { className: 'dsh-git-dialogtext' }, request.detail),
+            : h('p', { className: 'tw-git-dialogtext' }, request.detail),
           h(
             'div',
-            { className: 'dsh-git-dialogrow' },
+            { className: 'tw-git-dialogrow' },
             h(
               'button',
-              { type: 'button', className: 'dsh-git-ghost', onClick: onCancel },
+              { type: 'button', className: 'tw-git-ghost', onClick: onCancel },
               t('confirm.cancel'),
             ),
             h(
               'button',
               {
                 type: 'button',
-                className: request.danger === true ? 'dsh-git-danger' : 'dsh-git-primary',
+                className: request.danger === true ? 'tw-git-danger' : 'tw-git-primary',
                 disabled: busy !== null,
                 onClick: onConfirm,
               },
@@ -1566,9 +1566,9 @@ window.__ModuleLoader__.load({
           ? null
           : h(
               'div',
-              { className: 'dsh-git-form' },
+              { className: 'tw-git-form' },
               h('input', {
-                className: 'dsh-git-input',
+                className: 'tw-git-input',
                 value: form.name,
                 placeholder: namePlaceholder,
                 'aria-label': namePlaceholder,
@@ -1577,7 +1577,7 @@ window.__ModuleLoader__.load({
                 onKeyDown: onFormKey,
               }),
               h('input', {
-                className: 'dsh-git-input',
+                className: 'tw-git-input',
                 value: form.start,
                 placeholder: startPlaceholder,
                 'aria-label': startPlaceholder,
@@ -1587,17 +1587,17 @@ window.__ModuleLoader__.load({
               }),
               h(
                 'div',
-                { className: 'dsh-git-formrow' },
+                { className: 'tw-git-formrow' },
                 h(
                   'button',
-                  { type: 'button', className: 'dsh-git-ghost', onClick: () => setForm(null) },
+                  { type: 'button', className: 'tw-git-ghost', onClick: () => setForm(null) },
                   t('confirm.cancel'),
                 ),
                 h(
                   'button',
                   {
                     type: 'button',
-                    className: 'dsh-git-primary',
+                    className: 'tw-git-primary',
                     disabled: busy !== null || form.name.trim() === '',
                     onClick: submitForm,
                   },
@@ -1616,7 +1616,7 @@ window.__ModuleLoader__.load({
               {
                 key: 'switch',
                 type: 'button',
-                className: 'dsh-git-rowact',
+                className: 'tw-git-rowact',
                 disabled: busy !== null,
                 onClick: () => onCheckout(ref.name),
               },
@@ -1627,7 +1627,7 @@ window.__ModuleLoader__.load({
               {
                 key: 'merge',
                 type: 'button',
-                className: 'dsh-git-rowact',
+                className: 'tw-git-rowact',
                 disabled: busy !== null,
                 onClick: () => onMerge(ref.name),
               },
@@ -1638,7 +1638,7 @@ window.__ModuleLoader__.load({
               {
                 key: 'delete',
                 type: 'button',
-                className: 'dsh-git-rowact',
+                className: 'tw-git-rowact',
                 disabled: busy !== null,
                 onClick: () => onDeleteBranch(ref.name),
               },
@@ -1653,7 +1653,7 @@ window.__ModuleLoader__.load({
               {
                 key: 'delete',
                 type: 'button',
-                className: 'dsh-git-rowact',
+                className: 'tw-git-rowact',
                 disabled: busy !== null,
                 onClick: () => onDeleteTag(ref.name),
               },
@@ -1667,17 +1667,17 @@ window.__ModuleLoader__.load({
       const remoteNames = remotes ?? [];
       return h(
         'div',
-        { className: 'dsh-git-body' },
+        { className: 'tw-git-body' },
         h(
           'div',
-          { className: 'dsh-git-toolbar' },
-          h('span', { className: 'dsh-git-toolbartext' }, t('branches.count', { n: refs.length })),
-          h('span', { className: 'dsh-git-spacer' }),
+          { className: 'tw-git-toolbar' },
+          h('span', { className: 'tw-git-toolbartext' }, t('branches.count', { n: refs.length })),
+          h('span', { className: 'tw-git-spacer' }),
           h(
             'button',
             {
               type: 'button',
-              className: 'dsh-git-ghost',
+              className: 'tw-git-ghost',
               disabled: busy !== null,
               onClick: () => setForm({ kind: 'branch', name: '', start: '' }),
             },
@@ -1687,7 +1687,7 @@ window.__ModuleLoader__.load({
             'button',
             {
               type: 'button',
-              className: 'dsh-git-ghost',
+              className: 'tw-git-ghost',
               disabled: busy !== null,
               onClick: () => setForm({ kind: 'tag', name: '', start: '' }),
             },
@@ -1697,19 +1697,19 @@ window.__ModuleLoader__.load({
         formNode,
         h(
           'div',
-          { className: 'dsh-git-scroll' },
+          { className: 'tw-git-scroll' },
           branches.phase === 'loading'
-            ? h('p', { className: 'dsh-git-note' }, t('state.loading'))
+            ? h('p', { className: 'tw-git-note' }, t('state.loading'))
             : branches.phase === 'error'
-              ? h('p', { className: 'dsh-git-note error' }, String(branches.error.message))
+              ? h('p', { className: 'tw-git-note error' }, String(branches.error.message))
               : h(
                   React.Fragment,
                   null,
                   groups.length === 0
                     ? h(
                         'div',
-                        { className: 'dsh-git-state' },
-                        h('p', { className: 'dsh-git-statetitle' }, t('branches.empty')),
+                        { className: 'tw-git-state' },
+                        h('p', { className: 'tw-git-statetitle' }, t('branches.empty')),
                       )
                     : groups.map((group) =>
                         h(
@@ -1717,25 +1717,25 @@ window.__ModuleLoader__.load({
                           { key: group.id },
                           h(
                             'div',
-                            { className: 'dsh-git-sectionhead' },
-                            h('span', { className: 'dsh-git-sectiontitle' }, group.title),
-                            h('span', { className: 'dsh-git-count' }, group.entries.length),
+                            { className: 'tw-git-sectionhead' },
+                            h('span', { className: 'tw-git-sectiontitle' }, group.title),
+                            h('span', { className: 'tw-git-count' }, group.entries.length),
                           ),
                           ...group.entries.map((ref) =>
                             h(
                               'div',
-                              { key: `${group.id}:${ref.name}`, className: 'dsh-git-row' },
-                              h('span', { className: 'dsh-git-filename', title: ref.name }, ref.name),
+                              { key: `${group.id}:${ref.name}`, className: 'tw-git-row' },
+                              h('span', { className: 'tw-git-filename', title: ref.name }, ref.name),
                               ref.head
-                                ? h('span', { className: 'dsh-git-ref head' }, t('branches.current'))
+                                ? h('span', { className: 'tw-git-ref head' }, t('branches.current'))
                                 : null,
-                              h('span', { className: 'dsh-git-spacer' }),
+                              h('span', { className: 'tw-git-spacer' }),
                               ref.track === null || ref.track === undefined
                                 ? null
-                                : h('span', { className: 'dsh-git-hint' }, ref.track),
+                                : h('span', { className: 'tw-git-hint' }, ref.track),
                               ref.upstream === null || ref.upstream === undefined
                                 ? null
-                                : h('span', { className: 'dsh-git-dirname' }, `→ ${ref.upstream}`),
+                                : h('span', { className: 'tw-git-dirname' }, `→ ${ref.upstream}`),
                               ...rowActions(group, ref),
                             ),
                           ),
@@ -1748,15 +1748,15 @@ window.__ModuleLoader__.load({
                         null,
                         h(
                           'div',
-                          { className: 'dsh-git-sectionhead' },
-                          h('span', { className: 'dsh-git-sectiontitle' }, t('remotes.title')),
-                          h('span', { className: 'dsh-git-count' }, remoteNames.length),
+                          { className: 'tw-git-sectionhead' },
+                          h('span', { className: 'tw-git-sectiontitle' }, t('remotes.title')),
+                          h('span', { className: 'tw-git-count' }, remoteNames.length),
                         ),
                         ...remoteNames.map((name) =>
                           h(
                             'div',
-                            { key: `remote:${name}`, className: 'dsh-git-row' },
-                            h('span', { className: 'dsh-git-filename' }, name),
+                            { key: `remote:${name}`, className: 'tw-git-row' },
+                            h('span', { className: 'tw-git-filename' }, name),
                           ),
                         ),
                       ),
@@ -1791,14 +1791,14 @@ window.__ModuleLoader__.load({
       const nodes = [
         h(
           'div',
-          { key: 'head', className: 'dsh-git-sectionhead' },
-          h('span', { className: 'dsh-git-sectiontitle' }, group.title),
-          h('span', { className: 'dsh-git-count' }, group.entries.length),
+          { key: 'head', className: 'tw-git-sectionhead' },
+          h('span', { className: 'tw-git-sectiontitle' }, group.title),
+          h('span', { className: 'tw-git-count' }, group.entries.length),
           batch === null
             ? null
             : h(
                 'button',
-                { key: 'batch', type: 'button', className: 'dsh-git-batch', disabled: busy, onClick: batch.run },
+                { key: 'batch', type: 'button', className: 'tw-git-batch', disabled: busy, onClick: batch.run },
                 batch.label,
               ),
         ),
@@ -1813,13 +1813,13 @@ window.__ModuleLoader__.load({
               {
                 key: `d${key}`,
                 type: 'button',
-                className: 'dsh-git-dirrow',
+                className: 'tw-git-dirrow',
                 'aria-expanded': isFolded ? 'false' : 'true',
                 onClick: () => onToggleDir(key),
               },
-              h('span', { className: 'dsh-git-caret' }, isFolded ? '▸' : '▾'),
-              h('span', { className: 'dsh-git-dirname', title: run.dir }, run.dir === '' ? t('dir.root') : run.dir),
-              h('span', { className: 'dsh-git-dircount' }, run.entries.length),
+              h('span', { className: 'tw-git-caret' }, isFolded ? '▸' : '▾'),
+              h('span', { className: 'tw-git-dirname', title: run.dir }, run.dir === '' ? t('dir.root') : run.dir),
+              h('span', { className: 'tw-git-dircount' }, run.entries.length),
             ),
           );
         }
@@ -1836,19 +1836,19 @@ window.__ModuleLoader__.load({
               'div',
               {
                 key: entry.key,
-                className: 'dsh-git-file',
+                className: 'tw-git-file',
                 'data-active': selectedKey === entry.key ? 'true' : 'false',
               },
               h(
                 'button',
                 {
                   type: 'button',
-                  className: 'dsh-git-filemain',
+                  className: 'tw-git-filemain',
                   title: entry.path,
                   onClick: () => onSelect(entry),
                 },
                 h('span', { className: markClass(entry.letter) }, entry.letter),
-                h('span', { className: 'dsh-git-filename' }, entry.name),
+                h('span', { className: 'tw-git-filename' }, entry.name),
               ),
               action === null
                 ? null
@@ -1856,7 +1856,7 @@ window.__ModuleLoader__.load({
                     'button',
                     {
                       type: 'button',
-                      className: 'dsh-git-fileact',
+                      className: 'tw-git-fileact',
                       title: action.label,
                       'aria-label': action.label,
                       disabled: busy,
@@ -1870,7 +1870,7 @@ window.__ModuleLoader__.load({
                     'button',
                     {
                       type: 'button',
-                      className: 'dsh-git-fileact danger',
+                      className: 'tw-git-fileact danger',
                       title: t('action.discard'),
                       'aria-label': t('action.discard'),
                       disabled: busy,
@@ -2345,15 +2345,15 @@ window.__ModuleLoader__.load({
       const style = h('style', { key: 'style' }, CSS);
 
       if (cwd === undefined || cwd === null || cwd === '') {
-        return h('div', { className: 'dsh-git-root' }, style, h(PanelState, { title: t('state.noWorkspace'), t }));
+        return h('div', { className: 'tw-git-root' }, style, h(PanelState, { title: t('state.noWorkspace'), t }));
       }
       if (state.phase === 'loading') {
-        return h('div', { className: 'dsh-git-root' }, style, h(PanelState, { title: t('state.loading'), t }));
+        return h('div', { className: 'tw-git-root' }, style, h(PanelState, { title: t('state.loading'), t }));
       }
       if (state.phase === 'error') {
         return h(
           'div',
-          { className: 'dsh-git-root' },
+          { className: 'tw-git-root' },
           style,
           h(PanelState, {
             title: t('common.error'),
@@ -2366,7 +2366,7 @@ window.__ModuleLoader__.load({
       if (state.status === undefined || state.status.repo !== true) {
         return h(
           'div',
-          { className: 'dsh-git-root' },
+          { className: 'tw-git-root' },
           style,
           h(PanelState, { title: t('state.notRepoTitle'), detail: cwd, t }),
         );
@@ -2385,7 +2385,7 @@ window.__ModuleLoader__.load({
 
       const tabs = h(
         'div',
-        { key: 'tabs', className: 'dsh-git-tabs', role: 'tablist' },
+        { key: 'tabs', className: 'tw-git-tabs', role: 'tablist' },
         ...[
           // Only the change count is actionable; list lengths for history and
           // branches are noise, so those tabs carry no badge.
@@ -2399,12 +2399,12 @@ window.__ModuleLoader__.load({
               key: entry.id,
               type: 'button',
               role: 'tab',
-              className: 'dsh-git-tab',
+              className: 'tw-git-tab',
               'aria-selected': view === entry.id ? 'true' : 'false',
               onClick: () => setView(entry.id),
             },
-            h('span', { className: 'dsh-git-tablabel' }, entry.label),
-            entry.count > 0 ? h('span', { className: 'dsh-git-tabcount' }, entry.count) : null,
+            h('span', { className: 'tw-git-tablabel' }, entry.label),
+            entry.count > 0 ? h('span', { className: 'tw-git-tabcount' }, entry.count) : null,
           ),
         ),
       );
@@ -2416,7 +2416,7 @@ window.__ModuleLoader__.load({
               'div',
               {
                 key: 'notice',
-                className: notice.kind === 'error' ? 'dsh-git-banner error' : 'dsh-git-banner',
+                className: notice.kind === 'error' ? 'tw-git-banner error' : 'tw-git-banner',
               },
               notice.text,
             );
@@ -2437,7 +2437,7 @@ window.__ModuleLoader__.load({
       if (view === 'changes') {
         body = h(
           'div',
-          { key: 'body', className: 'dsh-git-body' },
+          { key: 'body', className: 'tw-git-body' },
           h(ChangesView, {
             groups,
             selection,
@@ -2512,147 +2512,147 @@ window.__ModuleLoader__.load({
               t,
             });
 
-      return h('div', { className: 'dsh-git-root' }, style, header, tabs, noticeNode, body, dialog);
+      return h('div', { className: 'tw-git-root' }, style, header, tabs, noticeNode, body, dialog);
     }
 
     /** Panel styles: theme tokens only, prefixed classes, no global selectors. */
     const CSS = [
-      '.dsh-git-root{position:relative;height:100%;min-height:0;flex:auto;display:flex;flex-direction:column;color:var(--dsw-alias-label-primary);font-size:var(--dsh-content-font-size-secondary,13px);line-height:1.5}',
-      '.dsh-git-spacer{flex:1 1 auto;min-width:0}',
-      '.dsh-git-head{flex:none;display:flex;flex-direction:column;gap:2px;padding:8px 6px 7px 12px;border-bottom:.5px solid var(--dsw-alias-border-l1)}',
-      '.dsh-git-headrow{display:flex;align-items:center;gap:6px;min-width:0}',
-      '.dsh-git-repo{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;font-size:13px}',
-      '.dsh-git-branch{flex:0 1 auto;min-width:0;display:inline-flex;align-items:center;gap:4px;padding:1px 7px;border-radius:999px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);font-size:11px}',
-      '.dsh-git-branchtext{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-      '.dsh-git-metarow{display:flex;align-items:center;gap:8px;min-width:0;color:var(--dsw-alias-label-secondary);font-size:11px}',
-      '.dsh-git-meta{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-      '.dsh-git-tool{width:26px;height:26px;flex:none;display:inline-flex;align-items:center;justify-content:center;padding:0;border:.5px solid var(--dsw-alias-border-l1);background:0 0;border-radius:999px;color:var(--dsw-alias-label-secondary);cursor:pointer;font:inherit}',
-      '.dsh-git-tool:hover:not(:disabled){border-color:var(--dsw-alias-label-secondary);background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2));color:var(--dsw-alias-label-primary)}',
-      '.dsh-git-tool:disabled{opacity:.45;cursor:default}',
-      '.dsh-git-tool svg{width:15px;height:15px}',
-      '.dsh-git-spin{display:inline-block;line-height:1}',
-      '.dsh-git-spin[data-spin="true"]{animation:dsh-git-spin .9s linear infinite}',
-      '@keyframes dsh-git-spin{to{transform:rotate(360deg)}}',
-      '@media (prefers-reduced-motion:reduce){.dsh-git-spin[data-spin="true"]{animation:none}}',
-      '.dsh-git-tabs{flex:none;display:flex;gap:2px;padding:3px 6px;border-bottom:.5px solid var(--dsw-alias-border-l1)}',
-      '.dsh-git-tab{flex:1 1 auto;min-width:0;display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:4px;border:.5px solid var(--dsw-alias-border-l1);background:0 0;border-radius:999px;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;cursor:pointer}',
-      '.dsh-git-tab:hover{border-color:var(--dsw-alias-label-secondary);background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2));color:var(--dsw-alias-label-primary)}',
-      '.dsh-git-tab[aria-selected="true"]{border-color:var(--dsw-alias-brand-primary);background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);font-weight:500}',
-      '.dsh-git-tablabel{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-      '.dsh-git-tabcount{flex:none;font-size:10px;opacity:.75}',
-      '.dsh-git-body{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;overflow:hidden}',
-      '.dsh-git-scroll{flex:1 1 auto;min-height:0;overflow:auto;scrollbar-gutter:stable}',
-      '.dsh-git-scroll.split{flex:0 0 auto;max-height:42%}',
-      '.dsh-git-toolbar{flex:none;display:flex;align-items:center;gap:6px;padding:6px 8px 4px 12px;color:var(--dsw-alias-label-secondary);font-size:11px}',
-      '.dsh-git-toolbartext{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-      '.dsh-git-ghost{flex:none;padding:1px 8px;border:.5px solid var(--dsw-alias-border-l1);border-radius:999px;background:0 0;color:var(--dsw-alias-label-secondary);font:inherit;font-size:11px;white-space:nowrap;cursor:pointer}',
-      '.dsh-git-ghost:hover:not(:disabled){border-color:var(--dsw-alias-label-secondary);color:var(--dsw-alias-label-primary)}',
-      '.dsh-git-ghost:disabled{opacity:.45;cursor:default}',
-      '.dsh-git-ghost[data-on="true"]{border-color:var(--dsw-alias-brand-primary);color:var(--dsw-alias-brand-primary)}',
-      '.dsh-git-sectionhead{display:flex;align-items:center;gap:6px;padding:8px 8px 3px 12px;color:var(--dsw-alias-label-secondary);font-size:11px}',
-      '.dsh-git-sectiontitle{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-      '.dsh-git-count{flex:none;color:var(--dsw-alias-state-idle-primary)}',
-      '.dsh-git-batch{margin-left:auto;flex:none;padding:0 7px;border:.5px solid var(--dsw-alias-border-l1);border-radius:999px;background:0 0;color:var(--dsw-alias-label-secondary);font:inherit;font-size:11px;cursor:pointer}',
-      '.dsh-git-batch:hover:not(:disabled){border-color:var(--dsw-alias-label-secondary);color:var(--dsw-alias-label-primary)}',
-      '.dsh-git-batch:disabled{opacity:.45;cursor:default}',
-      '.dsh-git-dirrow{display:flex;align-items:center;gap:4px;width:100%;min-width:0;box-sizing:border-box;padding:3px 8px 3px 13px;border:0;background:0 0;color:var(--dsw-alias-label-secondary);font:inherit;font-size:11px;text-align:left;cursor:pointer}',
-      '.dsh-git-dirrow:hover{background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2));color:var(--dsw-alias-label-primary)}',
-      '.dsh-git-caret{flex:none;width:9px;text-align:center;font-size:9px;line-height:1}',
-      '.dsh-git-dirname{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-      '.dsh-git-dircount{flex:none;color:var(--dsw-alias-state-idle-primary);font-size:10px}',
-      '.dsh-git-file{display:flex;align-items:center;gap:4px;min-width:0;padding-right:6px}',
-      '.dsh-git-file:hover{background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2))}',
-      '.dsh-git-file[data-active="true"]{background:var(--dsw-alias-bg-layer-2)}',
-      '.dsh-git-filemain{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:6px;padding:4px 0 4px 12px;border:0;background:0 0;color:inherit;font:inherit;text-align:left;cursor:pointer}',
-      '.dsh-git-filename{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-      '.dsh-git-row .dsh-git-filename{flex:1 1 auto}',
-      '.dsh-git-mark{flex:none;width:12px;text-align:center;font-weight:600;font-size:11px;color:var(--dsw-alias-label-secondary)}',
-      '.dsh-git-mark.m{color:var(--dsw-alias-state-warn-primary)}',
-      '.dsh-git-mark.a{color:var(--dsw-alias-state-success-primary)}',
-      '.dsh-git-mark.d,.dsh-git-mark.u{color:var(--dsw-alias-state-error-primary)}',
-      '.dsh-git-fileact{flex:none;opacity:.85;padding:0 6px;border:.5px solid var(--dsw-alias-border-l1);border-radius:999px;background:0 0;color:var(--dsw-alias-label-secondary);font:inherit;font-size:11px;white-space:nowrap;cursor:pointer}',
-      '.dsh-git-file:hover .dsh-git-fileact{opacity:1}',
-      '.dsh-git-fileact:hover:not(:disabled){border-color:var(--dsw-alias-label-secondary);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary)}',
-      '.dsh-git-fileact:focus-visible{opacity:1}',
-      '.dsh-git-fileact:disabled{opacity:.35;cursor:default}',
-      '.dsh-git-hint{flex:none;color:var(--dsw-alias-label-secondary);font-size:11px}',
-      '.dsh-git-row .dsh-git-hint{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-      '.dsh-git-row{display:flex;align-items:center;gap:6px;width:100%;min-width:0;box-sizing:border-box;padding:4px 10px 4px 12px;color:inherit;font:inherit;text-align:left}',
-      '.dsh-git-diff{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;border-top:.5px solid var(--dsw-alias-border-l1)}',
-      '.dsh-git-diffhead{flex:none;display:flex;align-items:center;gap:6px;height:32px;padding:0 6px 0 12px;border-bottom:.5px solid var(--dsw-alias-border-l1);color:var(--dsw-alias-label-secondary);font-size:11px}',
-      '.dsh-git-path{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-      '.dsh-git-code{flex:1 1 auto;min-height:0;overflow:auto;scrollbar-gutter:stable;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;line-height:1.6}',
-      '.dsh-git-line{display:grid;grid-template-columns:44px 44px 14px minmax(0,auto);width:max-content;min-width:100%;box-sizing:border-box}',
-      '.dsh-git-lno{padding-right:8px;text-align:right;color:var(--dsw-alias-label-secondary);opacity:.6;font-size:10px;user-select:none;-webkit-user-select:none}',
-      '.dsh-git-sign{text-align:center;color:var(--dsw-alias-label-secondary);user-select:none;-webkit-user-select:none}',
-      '.dsh-git-text{padding-right:16px;white-space:pre}',
-      '.dsh-git-line.add{background:color-mix(in srgb,var(--dsw-alias-state-success-primary) 12%,transparent)}',
-      '.dsh-git-line.del{background:color-mix(in srgb,var(--dsw-alias-state-error-primary) 12%,transparent)}',
-      '.dsh-git-line.add .dsh-git-sign{color:var(--dsw-alias-state-success-primary)}',
-      '.dsh-git-line.del .dsh-git-sign{color:var(--dsw-alias-state-error-primary)}',
-      '.dsh-git-line.meta{color:var(--dsw-alias-label-secondary);opacity:.8}',
-      '.dsh-git-word{border-radius:2px;background:color-mix(in srgb,var(--dsw-alias-state-warn-primary) 26%,transparent);color:inherit}',
-      '.dsh-git-line.add .dsh-git-word{background:color-mix(in srgb,var(--dsw-alias-state-success-primary) 32%,transparent)}',
-      '.dsh-git-line.del .dsh-git-word{background:color-mix(in srgb,var(--dsw-alias-state-error-primary) 32%,transparent)}',
-      '.dsh-git-filehead{display:flex;align-items:center;gap:8px;padding:5px 10px 4px 12px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);font-size:11px}',
-      '.dsh-git-filepath{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-primary)}',
-      '.dsh-git-filestat{flex:none}',
-      '.dsh-git-hunkrow{display:flex;align-items:center;gap:6px;padding:2px 10px 2px 4px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);font-size:11px}',
-      '.dsh-git-hunkbtn{flex:none;width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center;padding:0;border:.5px solid var(--dsw-alias-border-l1);border-radius:4px;background:0 0;color:inherit;font-size:9px;line-height:1;cursor:pointer}',
-      '.dsh-git-hunkbtn:hover{border-color:var(--dsw-alias-label-secondary);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary)}',
-      '.dsh-git-hunktext{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-      '.dsh-git-note{margin:0;padding:10px 12px;color:var(--dsw-alias-label-secondary);font-size:12px;word-break:break-word}',
-      '.dsh-git-note.error{color:var(--dsw-alias-state-error-primary)}',
-      '.dsh-git-state{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:24px 18px;text-align:center;color:var(--dsw-alias-label-secondary)}',
-      '.dsh-git-state svg{opacity:.45}',
-      '.dsh-git-statetitle{margin:0;color:var(--dsw-alias-label-primary);font-size:13px}',
-      '.dsh-git-statedetail{margin:0;max-width:100%;font-size:11px;opacity:.8;word-break:break-all}',
-      '.dsh-git-banner{margin:6px 8px 0;padding:6px 9px;border-radius:6px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);font-size:11px}',
-      '.dsh-git-banner.error{color:var(--dsw-alias-state-error-primary)}',
-      '.dsh-git-metablock{padding:8px 12px 2px}',
-      '.dsh-git-message{margin-top:4px;white-space:pre-wrap;word-break:break-word;color:var(--dsw-alias-label-primary);font-size:12px}',
-      '.dsh-git-commit{flex:none;border-top:.5px solid var(--dsw-alias-border-l1);padding:8px 10px 10px}',
-      '.dsh-git-commit textarea{width:100%;box-sizing:border-box;min-height:68px;max-height:200px;resize:vertical;padding:7px 9px;border-radius:6px;border:.5px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;line-height:1.5;outline:none}',
-      '.dsh-git-commit textarea:focus{border-color:var(--dsw-alias-brand-primary)}',
-      '.dsh-git-commit textarea:disabled{opacity:.6}',
-      '.dsh-git-commitrow{display:flex;align-items:center;gap:8px;margin-top:7px;min-width:0}',
-      '.dsh-git-commitrow .dsh-git-hint{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-      '.dsh-git-kbd{flex:none;padding:1px 5px;border:.5px solid var(--dsw-alias-border-l1);border-radius:4px;color:var(--dsw-alias-label-secondary);font-size:10px;white-space:nowrap}',
-      '.dsh-git-primary{flex:none;padding:5px 12px;border:0;border-radius:6px;background:var(--dsw-alias-brand-primary);color:var(--dsw-alias-bg-base);font:inherit;font-size:12px;font-weight:500;white-space:nowrap;cursor:pointer}',
-      '.dsh-git-primary:hover:not(:disabled){opacity:.9}',
-      '.dsh-git-primary:disabled{opacity:.5;cursor:default}',
-      '.dsh-git-commit-row{display:flex;align-items:center;gap:8px;width:100%;min-width:0;box-sizing:border-box;height:42px;padding:0 10px 0 4px;border:0;background:0 0;color:inherit;font:inherit;text-align:left;cursor:pointer}',
-      '.dsh-git-commit-row:hover{background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2))}',
-      '.dsh-git-commitmain{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:1px}',
-      '.dsh-git-commitline{display:flex;align-items:center;gap:4px;min-width:0}',
-      '.dsh-git-commitsub{display:flex;align-items:center;gap:8px;min-width:0;color:var(--dsw-alias-label-secondary);font-size:11px}',
-      '.dsh-git-commitmeta{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-      '.dsh-git-graph{flex:none;display:block}',
-      '.dsh-git-hash{flex:none;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;color:var(--dsw-alias-label-secondary)}',
-      '.dsh-git-subject{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-      '.dsh-git-ref{flex:none;max-width:90px;padding:0 5px;border-radius:999px;font-size:10px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-      '.dsh-git-ref.head{background:var(--dsw-alias-brand-primary);color:var(--dsw-alias-bg-base)}',
-      '.dsh-git-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}',
-      '.dsh-git-rowact{flex:none;opacity:.85;padding:0 6px;border:.5px solid var(--dsw-alias-border-l1);border-radius:999px;background:0 0;color:var(--dsw-alias-label-secondary);font:inherit;font-size:11px;white-space:nowrap;cursor:pointer}',
-      '.dsh-git-rowact:hover:not(:disabled){border-color:var(--dsw-alias-label-secondary);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);opacity:1}',
-      '.dsh-git-rowact:disabled{opacity:.35;cursor:default}',
-      '.dsh-git-form{flex:none;display:flex;flex-direction:column;gap:6px;padding:8px 10px 10px;border-bottom:.5px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1)}',
-      '.dsh-git-input{width:100%;box-sizing:border-box;padding:5px 8px;border-radius:6px;border:.5px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;outline:none}',
-      '.dsh-git-input:focus{border-color:var(--dsw-alias-brand-primary)}',
-      '.dsh-git-input::placeholder{color:var(--dsw-alias-label-secondary)}',
-      '.dsh-git-formrow{display:flex;align-items:center;justify-content:flex-end;gap:8px}',
-      '.dsh-git-ghost.danger{color:var(--dsw-alias-state-error-primary);border-color:color-mix(in srgb,var(--dsw-alias-state-error-primary) 50%,transparent)}',
-      '.dsh-git-ghost.danger:hover:not(:disabled){color:var(--dsw-alias-state-error-primary);border-color:var(--dsw-alias-state-error-primary)}',
-      '.dsh-git-fileact.danger{color:var(--dsw-alias-state-error-primary);border-color:color-mix(in srgb,var(--dsw-alias-state-error-primary) 45%,transparent)}',
-      '.dsh-git-fileact.danger:hover:not(:disabled){border-color:var(--dsw-alias-state-error-primary);color:var(--dsw-alias-state-error-primary)}',
-      '.dsh-git-danger{flex:none;padding:5px 12px;border:0;border-radius:6px;background:var(--dsw-alias-state-error-primary);color:var(--dsw-alias-bg-base);font:inherit;font-size:12px;font-weight:500;white-space:nowrap;cursor:pointer}',
-      '.dsh-git-danger:hover:not(:disabled){opacity:.9}',
-      '.dsh-git-danger:disabled{opacity:.5;cursor:default}',
-      '.dsh-git-overlay{position:absolute;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:16px;background:color-mix(in srgb,var(--dsw-alias-bg-base) 62%,transparent)}',
-      '.dsh-git-dialog{width:100%;max-width:290px;box-sizing:border-box;padding:12px;border-radius:8px;border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-overlay,var(--dsw-alias-bg-layer-2));box-shadow:0 10px 28px color-mix(in srgb,var(--dsw-alias-bg-base) 45%,transparent)}',
-      '.dsh-git-dialogtitle{margin:0 0 6px;color:var(--dsw-alias-label-primary);font-size:13px;font-weight:600}',
-      '.dsh-git-dialogtext{margin:0 0 10px;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:1.5}',
-      '.dsh-git-dialogrow{display:flex;align-items:center;justify-content:flex-end;gap:8px}',
+      '.tw-git-root{position:relative;height:100%;min-height:0;flex:auto;display:flex;flex-direction:column;color:var(--dsw-alias-label-primary);font-size:var(--dsh-content-font-size-secondary,13px);line-height:1.5}',
+      '.tw-git-spacer{flex:1 1 auto;min-width:0}',
+      '.tw-git-head{flex:none;display:flex;flex-direction:column;gap:2px;padding:8px 6px 7px 12px;border-bottom:.5px solid var(--dsw-alias-border-l1)}',
+      '.tw-git-headrow{display:flex;align-items:center;gap:6px;min-width:0}',
+      '.tw-git-repo{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;font-size:13px}',
+      '.tw-git-branch{flex:0 1 auto;min-width:0;display:inline-flex;align-items:center;gap:4px;padding:1px 7px;border-radius:999px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);font-size:11px}',
+      '.tw-git-branchtext{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.tw-git-metarow{display:flex;align-items:center;gap:8px;min-width:0;color:var(--dsw-alias-label-secondary);font-size:11px}',
+      '.tw-git-meta{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.tw-git-tool{width:26px;height:26px;flex:none;display:inline-flex;align-items:center;justify-content:center;padding:0;border:.5px solid var(--dsw-alias-border-l1);background:0 0;border-radius:999px;color:var(--dsw-alias-label-secondary);cursor:pointer;font:inherit}',
+      '.tw-git-tool:hover:not(:disabled){border-color:var(--dsw-alias-label-secondary);background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2));color:var(--dsw-alias-label-primary)}',
+      '.tw-git-tool:disabled{opacity:.45;cursor:default}',
+      '.tw-git-tool svg{width:15px;height:15px}',
+      '.tw-git-spin{display:inline-block;line-height:1}',
+      '.tw-git-spin[data-spin="true"]{animation:tw-git-spin .9s linear infinite}',
+      '@keyframes tw-git-spin{to{transform:rotate(360deg)}}',
+      '@media (prefers-reduced-motion:reduce){.tw-git-spin[data-spin="true"]{animation:none}}',
+      '.tw-git-tabs{flex:none;display:flex;gap:2px;padding:3px 6px;border-bottom:.5px solid var(--dsw-alias-border-l1)}',
+      '.tw-git-tab{flex:1 1 auto;min-width:0;display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:4px;border:.5px solid var(--dsw-alias-border-l1);background:0 0;border-radius:999px;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;cursor:pointer}',
+      '.tw-git-tab:hover{border-color:var(--dsw-alias-label-secondary);background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2));color:var(--dsw-alias-label-primary)}',
+      '.tw-git-tab[aria-selected="true"]{border-color:var(--dsw-alias-brand-primary);background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);font-weight:500}',
+      '.tw-git-tablabel{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.tw-git-tabcount{flex:none;font-size:10px;opacity:.75}',
+      '.tw-git-body{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;overflow:hidden}',
+      '.tw-git-scroll{flex:1 1 auto;min-height:0;overflow:auto;scrollbar-gutter:stable}',
+      '.tw-git-scroll.split{flex:0 0 auto;max-height:42%}',
+      '.tw-git-toolbar{flex:none;display:flex;align-items:center;gap:6px;padding:6px 8px 4px 12px;color:var(--dsw-alias-label-secondary);font-size:11px}',
+      '.tw-git-toolbartext{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.tw-git-ghost{flex:none;padding:1px 8px;border:.5px solid var(--dsw-alias-border-l1);border-radius:999px;background:0 0;color:var(--dsw-alias-label-secondary);font:inherit;font-size:11px;white-space:nowrap;cursor:pointer}',
+      '.tw-git-ghost:hover:not(:disabled){border-color:var(--dsw-alias-label-secondary);color:var(--dsw-alias-label-primary)}',
+      '.tw-git-ghost:disabled{opacity:.45;cursor:default}',
+      '.tw-git-ghost[data-on="true"]{border-color:var(--dsw-alias-brand-primary);color:var(--dsw-alias-brand-primary)}',
+      '.tw-git-sectionhead{display:flex;align-items:center;gap:6px;padding:8px 8px 3px 12px;color:var(--dsw-alias-label-secondary);font-size:11px}',
+      '.tw-git-sectiontitle{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.tw-git-count{flex:none;color:var(--dsw-alias-state-idle-primary)}',
+      '.tw-git-batch{margin-left:auto;flex:none;padding:0 7px;border:.5px solid var(--dsw-alias-border-l1);border-radius:999px;background:0 0;color:var(--dsw-alias-label-secondary);font:inherit;font-size:11px;cursor:pointer}',
+      '.tw-git-batch:hover:not(:disabled){border-color:var(--dsw-alias-label-secondary);color:var(--dsw-alias-label-primary)}',
+      '.tw-git-batch:disabled{opacity:.45;cursor:default}',
+      '.tw-git-dirrow{display:flex;align-items:center;gap:4px;width:100%;min-width:0;box-sizing:border-box;padding:3px 8px 3px 13px;border:0;background:0 0;color:var(--dsw-alias-label-secondary);font:inherit;font-size:11px;text-align:left;cursor:pointer}',
+      '.tw-git-dirrow:hover{background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2));color:var(--dsw-alias-label-primary)}',
+      '.tw-git-caret{flex:none;width:9px;text-align:center;font-size:9px;line-height:1}',
+      '.tw-git-dirname{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.tw-git-dircount{flex:none;color:var(--dsw-alias-state-idle-primary);font-size:10px}',
+      '.tw-git-file{display:flex;align-items:center;gap:4px;min-width:0;padding-right:6px}',
+      '.tw-git-file:hover{background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2))}',
+      '.tw-git-file[data-active="true"]{background:var(--dsw-alias-bg-layer-2)}',
+      '.tw-git-filemain{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:6px;padding:4px 0 4px 12px;border:0;background:0 0;color:inherit;font:inherit;text-align:left;cursor:pointer}',
+      '.tw-git-filename{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.tw-git-row .tw-git-filename{flex:1 1 auto}',
+      '.tw-git-mark{flex:none;width:12px;text-align:center;font-weight:600;font-size:11px;color:var(--dsw-alias-label-secondary)}',
+      '.tw-git-mark.m{color:var(--dsw-alias-state-warn-primary)}',
+      '.tw-git-mark.a{color:var(--dsw-alias-state-success-primary)}',
+      '.tw-git-mark.d,.tw-git-mark.u{color:var(--dsw-alias-state-error-primary)}',
+      '.tw-git-fileact{flex:none;opacity:.85;padding:0 6px;border:.5px solid var(--dsw-alias-border-l1);border-radius:999px;background:0 0;color:var(--dsw-alias-label-secondary);font:inherit;font-size:11px;white-space:nowrap;cursor:pointer}',
+      '.tw-git-file:hover .tw-git-fileact{opacity:1}',
+      '.tw-git-fileact:hover:not(:disabled){border-color:var(--dsw-alias-label-secondary);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary)}',
+      '.tw-git-fileact:focus-visible{opacity:1}',
+      '.tw-git-fileact:disabled{opacity:.35;cursor:default}',
+      '.tw-git-hint{flex:none;color:var(--dsw-alias-label-secondary);font-size:11px}',
+      '.tw-git-row .tw-git-hint{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.tw-git-row{display:flex;align-items:center;gap:6px;width:100%;min-width:0;box-sizing:border-box;padding:4px 10px 4px 12px;color:inherit;font:inherit;text-align:left}',
+      '.tw-git-diff{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;border-top:.5px solid var(--dsw-alias-border-l1)}',
+      '.tw-git-diffhead{flex:none;display:flex;align-items:center;gap:6px;height:32px;padding:0 6px 0 12px;border-bottom:.5px solid var(--dsw-alias-border-l1);color:var(--dsw-alias-label-secondary);font-size:11px}',
+      '.tw-git-path{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.tw-git-code{flex:1 1 auto;min-height:0;overflow:auto;scrollbar-gutter:stable;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;line-height:1.6}',
+      '.tw-git-line{display:grid;grid-template-columns:44px 44px 14px minmax(0,auto);width:max-content;min-width:100%;box-sizing:border-box}',
+      '.tw-git-lno{padding-right:8px;text-align:right;color:var(--dsw-alias-label-secondary);opacity:.6;font-size:10px;user-select:none;-webkit-user-select:none}',
+      '.tw-git-sign{text-align:center;color:var(--dsw-alias-label-secondary);user-select:none;-webkit-user-select:none}',
+      '.tw-git-text{padding-right:16px;white-space:pre}',
+      '.tw-git-line.add{background:color-mix(in srgb,var(--dsw-alias-state-success-primary) 12%,transparent)}',
+      '.tw-git-line.del{background:color-mix(in srgb,var(--dsw-alias-state-error-primary) 12%,transparent)}',
+      '.tw-git-line.add .tw-git-sign{color:var(--dsw-alias-state-success-primary)}',
+      '.tw-git-line.del .tw-git-sign{color:var(--dsw-alias-state-error-primary)}',
+      '.tw-git-line.meta{color:var(--dsw-alias-label-secondary);opacity:.8}',
+      '.tw-git-word{border-radius:2px;background:color-mix(in srgb,var(--dsw-alias-state-warn-primary) 26%,transparent);color:inherit}',
+      '.tw-git-line.add .tw-git-word{background:color-mix(in srgb,var(--dsw-alias-state-success-primary) 32%,transparent)}',
+      '.tw-git-line.del .tw-git-word{background:color-mix(in srgb,var(--dsw-alias-state-error-primary) 32%,transparent)}',
+      '.tw-git-filehead{display:flex;align-items:center;gap:8px;padding:5px 10px 4px 12px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);font-size:11px}',
+      '.tw-git-filepath{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-primary)}',
+      '.tw-git-filestat{flex:none}',
+      '.tw-git-hunkrow{display:flex;align-items:center;gap:6px;padding:2px 10px 2px 4px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);font-size:11px}',
+      '.tw-git-hunkbtn{flex:none;width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center;padding:0;border:.5px solid var(--dsw-alias-border-l1);border-radius:4px;background:0 0;color:inherit;font-size:9px;line-height:1;cursor:pointer}',
+      '.tw-git-hunkbtn:hover{border-color:var(--dsw-alias-label-secondary);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary)}',
+      '.tw-git-hunktext{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.tw-git-note{margin:0;padding:10px 12px;color:var(--dsw-alias-label-secondary);font-size:12px;word-break:break-word}',
+      '.tw-git-note.error{color:var(--dsw-alias-state-error-primary)}',
+      '.tw-git-state{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:24px 18px;text-align:center;color:var(--dsw-alias-label-secondary)}',
+      '.tw-git-state svg{opacity:.45}',
+      '.tw-git-statetitle{margin:0;color:var(--dsw-alias-label-primary);font-size:13px}',
+      '.tw-git-statedetail{margin:0;max-width:100%;font-size:11px;opacity:.8;word-break:break-all}',
+      '.tw-git-banner{margin:6px 8px 0;padding:6px 9px;border-radius:6px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);font-size:11px}',
+      '.tw-git-banner.error{color:var(--dsw-alias-state-error-primary)}',
+      '.tw-git-metablock{padding:8px 12px 2px}',
+      '.tw-git-message{margin-top:4px;white-space:pre-wrap;word-break:break-word;color:var(--dsw-alias-label-primary);font-size:12px}',
+      '.tw-git-commit{flex:none;border-top:.5px solid var(--dsw-alias-border-l1);padding:8px 10px 10px}',
+      '.tw-git-commit textarea{width:100%;box-sizing:border-box;min-height:68px;max-height:200px;resize:vertical;padding:7px 9px;border-radius:6px;border:.5px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;line-height:1.5;outline:none}',
+      '.tw-git-commit textarea:focus{border-color:var(--dsw-alias-brand-primary)}',
+      '.tw-git-commit textarea:disabled{opacity:.6}',
+      '.tw-git-commitrow{display:flex;align-items:center;gap:8px;margin-top:7px;min-width:0}',
+      '.tw-git-commitrow .tw-git-hint{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.tw-git-kbd{flex:none;padding:1px 5px;border:.5px solid var(--dsw-alias-border-l1);border-radius:4px;color:var(--dsw-alias-label-secondary);font-size:10px;white-space:nowrap}',
+      '.tw-git-primary{flex:none;padding:5px 12px;border:0;border-radius:6px;background:var(--dsw-alias-brand-primary);color:var(--dsw-alias-bg-base);font:inherit;font-size:12px;font-weight:500;white-space:nowrap;cursor:pointer}',
+      '.tw-git-primary:hover:not(:disabled){opacity:.9}',
+      '.tw-git-primary:disabled{opacity:.5;cursor:default}',
+      '.tw-git-commit-row{display:flex;align-items:center;gap:8px;width:100%;min-width:0;box-sizing:border-box;height:42px;padding:0 10px 0 4px;border:0;background:0 0;color:inherit;font:inherit;text-align:left;cursor:pointer}',
+      '.tw-git-commit-row:hover{background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2))}',
+      '.tw-git-commitmain{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:1px}',
+      '.tw-git-commitline{display:flex;align-items:center;gap:4px;min-width:0}',
+      '.tw-git-commitsub{display:flex;align-items:center;gap:8px;min-width:0;color:var(--dsw-alias-label-secondary);font-size:11px}',
+      '.tw-git-commitmeta{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.tw-git-graph{flex:none;display:block}',
+      '.tw-git-hash{flex:none;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;color:var(--dsw-alias-label-secondary)}',
+      '.tw-git-subject{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.tw-git-ref{flex:none;max-width:90px;padding:0 5px;border-radius:999px;font-size:10px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.tw-git-ref.head{background:var(--dsw-alias-brand-primary);color:var(--dsw-alias-bg-base)}',
+      '.tw-git-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}',
+      '.tw-git-rowact{flex:none;opacity:.85;padding:0 6px;border:.5px solid var(--dsw-alias-border-l1);border-radius:999px;background:0 0;color:var(--dsw-alias-label-secondary);font:inherit;font-size:11px;white-space:nowrap;cursor:pointer}',
+      '.tw-git-rowact:hover:not(:disabled){border-color:var(--dsw-alias-label-secondary);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);opacity:1}',
+      '.tw-git-rowact:disabled{opacity:.35;cursor:default}',
+      '.tw-git-form{flex:none;display:flex;flex-direction:column;gap:6px;padding:8px 10px 10px;border-bottom:.5px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1)}',
+      '.tw-git-input{width:100%;box-sizing:border-box;padding:5px 8px;border-radius:6px;border:.5px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;outline:none}',
+      '.tw-git-input:focus{border-color:var(--dsw-alias-brand-primary)}',
+      '.tw-git-input::placeholder{color:var(--dsw-alias-label-secondary)}',
+      '.tw-git-formrow{display:flex;align-items:center;justify-content:flex-end;gap:8px}',
+      '.tw-git-ghost.danger{color:var(--dsw-alias-state-error-primary);border-color:color-mix(in srgb,var(--dsw-alias-state-error-primary) 50%,transparent)}',
+      '.tw-git-ghost.danger:hover:not(:disabled){color:var(--dsw-alias-state-error-primary);border-color:var(--dsw-alias-state-error-primary)}',
+      '.tw-git-fileact.danger{color:var(--dsw-alias-state-error-primary);border-color:color-mix(in srgb,var(--dsw-alias-state-error-primary) 45%,transparent)}',
+      '.tw-git-fileact.danger:hover:not(:disabled){border-color:var(--dsw-alias-state-error-primary);color:var(--dsw-alias-state-error-primary)}',
+      '.tw-git-danger{flex:none;padding:5px 12px;border:0;border-radius:6px;background:var(--dsw-alias-state-error-primary);color:var(--dsw-alias-bg-base);font:inherit;font-size:12px;font-weight:500;white-space:nowrap;cursor:pointer}',
+      '.tw-git-danger:hover:not(:disabled){opacity:.9}',
+      '.tw-git-danger:disabled{opacity:.5;cursor:default}',
+      '.tw-git-overlay{position:absolute;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:16px;background:color-mix(in srgb,var(--dsw-alias-bg-base) 62%,transparent)}',
+      '.tw-git-dialog{width:100%;max-width:290px;box-sizing:border-box;padding:12px;border-radius:8px;border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-overlay,var(--dsw-alias-bg-layer-2));box-shadow:0 10px 28px color-mix(in srgb,var(--dsw-alias-bg-base) 45%,transparent)}',
+      '.tw-git-dialogtitle{margin:0 0 6px;color:var(--dsw-alias-label-primary);font-size:13px;font-weight:600}',
+      '.tw-git-dialogtext{margin:0 0 10px;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:1.5}',
+      '.tw-git-dialogrow{display:flex;align-items:center;justify-content:flex-end;gap:8px}',
     ].join('');
 
     /** Required browser services; anything absent keeps this plugin inactive. */

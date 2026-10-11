@@ -1,5 +1,6 @@
-# The git panel bundle: one Host row carrying the git adapter and its routes.
-# The Client half travels with the package through `dsh.client`, so no second row.
+# The Tokenworks git panel bundle: one Host row carrying the git adapter and its
+# routes. The Client half travels with the package through `dsh.client`, so no
+# second row.
 - insert:
     - id: git-panel
-      name: '@local/dsh-git-panel'
+      name: '@local/tokenworks-git-panel'

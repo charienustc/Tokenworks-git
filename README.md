@@ -138,7 +138,7 @@ sequenceDiagram
 
 ## 配置
 
-在 profile 的 bundle 行里给 `@local/dsh-git-panel` 加 `config`：
+在 profile 的 bundle 行里给 `@local/tokenworks-git-panel` 加 `config`：
 
 | 键 | 默认 | 说明 |
 | --- | --- | --- |

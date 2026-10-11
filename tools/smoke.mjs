@@ -1,10 +1,10 @@
 /**
  * Adapter smoke test: drives `lib/git.js` against a scratch repository through a
  * minimal fake of `ctx.subprocess` and `ctx.fs`, so the git argv, the parsers
- * and the write paths are exercised without the Harness runtime.
+ * and the write paths are exercised without the USTC Tokenworks runtime.
  *
  * The fake captures child output through file descriptors rather than pipes:
- * that keeps the test runnable under a confined DSH sandbox, where a piped
+ * that keeps the test runnable under a confined sandbox, where a piped
  * `spawn` from a confined process fails with EPERM.
  *
  * Usage: node tools/smoke.mjs
