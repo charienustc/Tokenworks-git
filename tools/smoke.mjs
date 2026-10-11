@@ -338,6 +338,18 @@ try {
 }
 check('tag: a malformed name is rejected', badTag !== null && badTag.code === 'bad-request');
 
+// `%(upstream:track)` ships as English text; the panel renders ↑/↓ from these
+// counts instead, and marks an upstream that no longer exists.
+const refShapes = await git.branches(scratch);
+check(
+  'branches: every ref carries numeric divergence and a gone flag',
+  refShapes.refs.length > 0 &&
+    refShapes.refs.every(
+      (ref) => Number.isInteger(ref.ahead) && Number.isInteger(ref.behind) && typeof ref.gone === 'boolean',
+    ),
+  JSON.stringify(refShapes.refs.map((ref) => [ref.name, ref.ahead, ref.behind, ref.gone])),
+);
+
 // --- cherry-pick --------------------------------------------------------------
 await git.cherryPick(scratch, wipCommit.hash);
 const afterPick = await git.log(scratch, { limit: 1 });
@@ -528,7 +540,14 @@ await rm(remoteDir, { recursive: true, force: true });
 gitCli(['init', '--bare', remoteDir], root);
 gitCli(['remote', 'add', 'origin', remoteDir], scratch);
 const remoteList = await git.remotes(scratch);
-check('remotes: the configured remote is listed', remoteList.join(',') === 'origin', JSON.stringify(remoteList));
+check(
+  'remotes: the configured remote is listed with its fetch URL',
+  remoteList.length === 1 &&
+    remoteList[0].name === 'origin' &&
+    typeof remoteList[0].url === 'string' &&
+    remoteList[0].url !== '',
+  JSON.stringify(remoteList),
+);
 
 /** The git-level argv of the most recent command whose subcommand is `name`. */
 const lastArgv = (name) => {

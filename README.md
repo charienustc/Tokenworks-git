@@ -20,7 +20,7 @@ USTC Tokenworks 的**会话右侧栏 Git 面板**：改动清单、统一 diff�
 | 统一 diff | 旧新行号槽、hunk 折叠、单行替换的词级高亮 |
 | 暂存与提交 | 单文件 / 分组 / 全部三个粒度；提交框支持 Ctrl/⌘+Enter |
 | 提交图 | 按 parents 计算泳道，行间连线连续；每行带引用 chip 与作者、日期、短哈希 |
-| 分支与标签 | 新建分支并直接切过去、切换、合并、安全删除；标签新建与删除 |
+| 分支与标签 | 本地分支 / 远程分支 / 标签 / 远程仓库四组，每行带短哈希、日期与提交标题；本地上游用 ↑/↓ 计数，远程仓库显示 fetch 地址；新建分支并直接切过去、切换、合并、安全删除 |
 | 远程同步 | 获取、拉取（只做快进）、推送（首次发布自动 `-u`） |
 | 撤销与重写 | 放弃改动、`revert`、`cherry-pick`、`reset --soft/--mixed`、检出任意提交 |
 | 主题与语言 | 跟随 USTC Tokenworks 的浅色 / 深色；文案中英双语 |
@@ -130,7 +130,7 @@ https://git.ustc.edu.cn/Charien/tokenworks-git-panel.git
 pnpm test          # 或：node tools/smoke.mjs && node tools/client-smoke.mjs
 ```
 
-Host 67 条 + Client 120 条断言。前者对着临时仓库跑真实 git（含用本地裸仓库做远程同步的端到端），后者用微型 React 运行时渲染面板。
+Host 68 条 + Client 123 条断言。前者对着临时仓库跑真实 git（含用本地裸仓库做远程同步的端到端），后者用微型 React 运行时渲染面板。
 
 代码里没有平台专有分支，但**目前只在 Windows 上实测过**。受限沙箱里 git 的远程命令会因无法创建命名管道而显示 `SKIP`，不受限时真实执行。
 

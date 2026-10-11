@@ -139,6 +139,9 @@ const BRANCHES_PAYLOAD = {
       hash: 'abc1234',
       upstream: 'origin/main',
       track: '[ahead 1, behind 2]',
+      ahead: 1,
+      behind: 2,
+      gone: false,
       head: true,
       date: '2026-10-10T12:00:00+08:00',
       subject: 'second commit',
@@ -208,7 +211,9 @@ function createHarness(options = {}) {
       }
       if (target.pathname === `${API}/log`) return LOG_PAYLOAD;
       if (target.pathname === `${API}/branches`) return BRANCHES_PAYLOAD;
-      if (target.pathname === `${API}/remotes`) return { ok: true, remotes: ['origin'] };
+      if (target.pathname === `${API}/remotes`) {
+        return { ok: true, remotes: [{ name: 'origin', url: 'git@github.com:charienustc/Tokenworks-git.git' }] };
+      }
       if (target.pathname === `${API}/commit` && target.searchParams.has('rev')) {
         return DETAIL_PAYLOAD;
       }
@@ -930,7 +935,26 @@ function postTo(harness, path) {
     JSON.stringify(heads),
   );
   check('branches: the current branch carries the badge', h.text().includes('当前'));
-  check('branches: the tracking hint renders', h.text().includes('[ahead 1, behind 2]'));
+  check(
+    'branches: the divergence renders as counts, not as git\'s English summary',
+    h.text().includes('↑1') && h.text().includes('↓2') && !h.text().includes('ahead 1'),
+    h.text(),
+  );
+  check(
+    'branches: the row carries the commit sub-line',
+    h.text().includes('abc1234') && h.text().includes('2026-10-10 12:00') && h.text().includes('second commit'),
+    h.text(),
+  );
+  check(
+    'branches: the upstream of HEAD is marked in the remote section',
+    h.text().includes('当前分支的上游'),
+    h.text(),
+  );
+  check(
+    'branches: a remote row shows its fetch URL',
+    h.text().includes('git@github.com:charienustc/Tokenworks-git.git'),
+    h.text(),
+  );
 }
 
 // ==============================================================================
@@ -968,7 +992,7 @@ function postTo(harness, path) {
 
   // A non-current branch carries the switch / merge / delete cluster.
   const featureRow = h
-    .byClass('tw-git-row')
+    .byClass('tw-git-brow')
     .find((node) => h.text(node).includes('feature') && h.text(node).includes('切换'));
   check(
     'branch: a non-current branch offers switch, merge and delete',
@@ -989,7 +1013,7 @@ function postTo(harness, path) {
   );
 
   const rowAgain = h
-    .byClass('tw-git-row')
+    .byClass('tw-git-brow')
     .find((node) => h.text(node).includes('feature') && h.text(node).includes('删除'));
   h.click(h.descendants(rowAgain, (node) => node.type === 'button' && h.text(node) === '删除')[0]);
   await h.settle();
@@ -1022,7 +1046,7 @@ function postTo(harness, path) {
     JSON.stringify(tagCall && tagCall.body),
   );
 
-  const tagRow = h.byClass('tw-git-row').find((node) => h.text(node).includes('v0.1.0'));
+  const tagRow = h.byClass('tw-git-brow').find((node) => h.text(node).includes('v0.1.0'));
   h.click(h.descendants(tagRow, (node) => node.type === 'button' && h.text(node) === '删除')[0]);
   await h.settle();
   h.click(h.descendants(h.byClass('tw-git-dialog')[0], (node) => node.type === 'button')[1]);

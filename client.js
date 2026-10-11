@@ -85,6 +85,8 @@ window.__ModuleLoader__.load({
       'branches.tag': '标签',
       'branches.empty': '没有分支。',
       'branches.current': '当前',
+      'branches.upstreamOfHead': '当前分支的上游',
+      'branches.gone': '上游已删除',
       'state.refreshing': '正在刷新…',
       'state.notRepoTitle': '不是 git 仓库',
       'state.workspace': '工作区目录',
@@ -212,6 +214,8 @@ window.__ModuleLoader__.load({
       'branches.tag': 'Tags',
       'branches.empty': 'No branches.',
       'branches.current': 'current',
+      'branches.upstreamOfHead': 'upstream of HEAD',
+      'branches.gone': 'upstream gone',
       'state.refreshing': 'Refreshing…',
       'state.notRepoTitle': 'Not a git repository',
       'state.workspace': 'Workspace directory',
@@ -1717,7 +1721,70 @@ window.__ModuleLoader__.load({
         return parts;
       };
 
-      const remoteNames = remotes ?? [];
+      const remoteList = remotes ?? [];
+      const headRef = refs.find((ref) => ref.head === true);
+      const headUpstream = headRef === undefined || headRef.upstream === null ? null : headRef.upstream;
+
+      /** The muted second line of a row, carrying whatever facts that row has. */
+      const metaLine = (parts) => {
+        const text = parts.filter((part) => typeof part === 'string' && part !== '').join(' · ');
+        return text === ''
+          ? null
+          : h('div', { className: 'tw-git-bsub' }, h('span', { className: 'tw-git-bmeta' }, text));
+      };
+      /** ↑ahead ↓behind, from the counts the adapter parses out of git's own summary. */
+      const delta = (ref) => {
+        if (ref.ahead === 0 && ref.behind === 0) return null;
+        const ahead = ref.ahead > 0 ? `↑${String(ref.ahead)}` : '';
+        const behind = ref.behind > 0 ? `↓${String(ref.behind)}` : '';
+        return h('span', { className: 'tw-git-bdelta' }, `${ahead}${behind}`);
+      };
+      const branchRow = (group, ref) =>
+        h(
+          'div',
+          { key: `${group.id}:${ref.name}`, className: ref.head === true ? 'tw-git-brow head' : 'tw-git-brow' },
+          h('span', { className: ref.head === true ? 'tw-git-bdot on' : 'tw-git-bdot' }),
+          h(
+            'div',
+            { className: 'tw-git-bmain' },
+            h(
+              'div',
+              { className: 'tw-git-bline' },
+              h('span', { className: 'tw-git-bname', title: ref.name }, ref.name),
+              ref.head === true ? h('span', { className: 'tw-git-ref head' }, t('branches.current')) : null,
+              ref.kind === 'remote' && ref.name === headUpstream
+                ? h('span', { className: 'tw-git-ref' }, t('branches.upstreamOfHead'))
+                : null,
+              ref.gone === true ? h('span', { className: 'tw-git-ref gone' }, t('branches.gone')) : null,
+            ),
+            metaLine([ref.hash, commitWhen(ref.date), ref.subject]),
+          ),
+          h('span', { className: 'tw-git-spacer' }),
+          ref.kind === 'local' ? delta(ref) : null,
+          ref.kind !== 'local' || ref.upstream === null || ref.upstream === undefined
+            ? null
+            : h('span', { className: 'tw-git-bup', title: ref.upstream }, `→ ${ref.upstream}`),
+          ...rowActions(group, ref),
+        );
+      const remoteRow = (remote) =>
+        h(
+          'div',
+          { key: `remote:${remote.name}`, className: 'tw-git-brow' },
+          h('span', { className: 'tw-git-bdot' }),
+          h(
+            'div',
+            { className: 'tw-git-bmain' },
+            h(
+              'div',
+              { className: 'tw-git-bline' },
+              h('span', { className: 'tw-git-bname', title: remote.name }, remote.name),
+              headUpstream !== null && headUpstream.startsWith(`${remote.name}/`)
+                ? h('span', { className: 'tw-git-ref' }, t('branches.upstreamOfHead'))
+                : null,
+            ),
+            metaLine([remote.url]),
+          ),
+        );
       return h(
         'div',
         { className: 'tw-git-body' },
@@ -1774,27 +1841,10 @@ window.__ModuleLoader__.load({
                             h('span', { className: 'tw-git-sectiontitle' }, group.title),
                             h('span', { className: 'tw-git-count' }, group.entries.length),
                           ),
-                          ...group.entries.map((ref) =>
-                            h(
-                              'div',
-                              { key: `${group.id}:${ref.name}`, className: 'tw-git-row' },
-                              h('span', { className: 'tw-git-filename', title: ref.name }, ref.name),
-                              ref.head
-                                ? h('span', { className: 'tw-git-ref head' }, t('branches.current'))
-                                : null,
-                              h('span', { className: 'tw-git-spacer' }),
-                              ref.track === null || ref.track === undefined
-                                ? null
-                                : h('span', { className: 'tw-git-hint' }, ref.track),
-                              ref.upstream === null || ref.upstream === undefined
-                                ? null
-                                : h('span', { className: 'tw-git-dirname' }, `→ ${ref.upstream}`),
-                              ...rowActions(group, ref),
-                            ),
-                          ),
+                          ...group.entries.map((ref) => branchRow(group, ref)),
                         ),
                       ),
-                  remoteNames.length === 0
+                  remoteList.length === 0
                     ? null
                     : h(
                         React.Fragment,
@@ -1803,15 +1853,9 @@ window.__ModuleLoader__.load({
                           'div',
                           { className: 'tw-git-sectionhead' },
                           h('span', { className: 'tw-git-sectiontitle' }, t('remotes.title')),
-                          h('span', { className: 'tw-git-count' }, remoteNames.length),
+                          h('span', { className: 'tw-git-count' }, remoteList.length),
                         ),
-                        ...remoteNames.map((name) =>
-                          h(
-                            'div',
-                            { key: `remote:${name}`, className: 'tw-git-row' },
-                            h('span', { className: 'tw-git-filename' }, name),
-                          ),
-                        ),
+                        ...remoteList.map((remote) => remoteRow(remote)),
                       ),
                 ),
         ),
@@ -2475,7 +2519,7 @@ window.__ModuleLoader__.load({
               const extra =
                 action === 'push' && !hasUpstream
                   ? {
-                      remote: remotes.length > 0 ? remotes[0] : 'origin',
+                      remote: remotes.length > 0 ? remotes[0].name : 'origin',
                       branch: status.branch ?? undefined,
                       setUpstream: true,
                     }
@@ -2781,9 +2825,23 @@ window.__ModuleLoader__.load({
       '.tw-git-ghost:hover:not(:disabled){border-color:var(--dsw-alias-label-secondary);color:var(--dsw-alias-label-primary)}',
       '.tw-git-ghost:disabled{opacity:.45;cursor:default}',
       '.tw-git-ghost[data-on="true"]{border-color:var(--dsw-alias-brand-primary);color:var(--dsw-alias-brand-primary)}',
-      '.tw-git-sectionhead{display:flex;align-items:center;gap:6px;padding:8px 8px 3px 12px;color:var(--dsw-alias-label-secondary);font-size:11px}',
+      '.tw-git-sectionhead{display:flex;align-items:center;gap:6px;margin-top:6px;padding:8px 12px 4px;border-top:.5px solid var(--dsw-alias-border-l1);color:var(--dsw-alias-label-secondary);font-size:11px}',
       '.tw-git-sectiontitle{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-      '.tw-git-count{flex:none;color:var(--dsw-alias-state-idle-primary)}',
+      '.tw-git-count{flex:none;min-width:16px;box-sizing:border-box;text-align:center;padding:0 5px;border-radius:999px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);font-size:10px;line-height:1.6}',
+      '.tw-git-brow{display:flex;align-items:center;gap:7px;width:100%;min-width:0;box-sizing:border-box;padding:5px 10px 5px 12px;border-radius:6px}',
+      '.tw-git-brow:hover{background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2))}',
+      '.tw-git-brow.head{background:color-mix(in srgb,var(--dsw-alias-brand-primary) 7%,transparent)}',
+      '.tw-git-bdot{flex:none;width:6px;height:6px;border-radius:999px;background:var(--dsw-alias-border-l2)}',
+      '.tw-git-bdot.on{background:var(--dsw-alias-brand-primary)}',
+      '.tw-git-bmain{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:1px}',
+      '.tw-git-bline{display:flex;align-items:center;gap:5px;min-width:0}',
+      '.tw-git-bname{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-primary);font-size:12px}',
+      '.tw-git-brow.head .tw-git-bname{color:var(--dsw-alias-brand-primary);font-weight:600}',
+      '.tw-git-bsub{display:flex;align-items:center;gap:6px;min-width:0;color:var(--dsw-alias-label-secondary);font-size:11px}',
+      '.tw-git-bmeta{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.85}',
+      '.tw-git-bdelta{flex:none;color:var(--dsw-alias-label-secondary);font-size:11px;font-variant-numeric:tabular-nums}',
+      '.tw-git-bup{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-secondary);font-size:11px}',
+      '.tw-git-ref.gone{background:var(--dsw-alias-state-error-primary);color:var(--dsw-alias-bg-base)}',
       '.tw-git-batch{margin-left:auto;flex:none;padding:0 7px;border:.5px solid var(--dsw-alias-border-l1);border-radius:999px;background:0 0;color:var(--dsw-alias-label-secondary);font:inherit;font-size:11px;cursor:pointer}',
       '.tw-git-batch:hover:not(:disabled){border-color:var(--dsw-alias-label-secondary);color:var(--dsw-alias-label-primary)}',
       '.tw-git-batch:disabled{opacity:.45;cursor:default}',
