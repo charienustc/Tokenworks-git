@@ -13,7 +13,7 @@
 USTC Tokenworks 的**会话右侧栏 Git 面板**：改动清单、统一 diff、带泳道的提交图、分支与标签、远程同步，以及一整套受控的写操作——都在会话里就地完成，不用切到终端。
 
 > [!NOTE]
-> 写操作是一张**固定的命令表**，不是命令通道。没有 `push --force`、没有 `branch -D`、没有 `checkout --force`、没有 `reset --hard`、没有 `rebase`，也不会删除未跟踪文件。会移动 HEAD 或丢弃内容的动作都先弹面板内确认框。**破坏性能力是"不提供"，不是"再问一次"。**
+> 写操作是一张**固定的命令表**，不是命令通道。没有 `push --force`、没有 `branch -D`、没有 `checkout --force`、没有 `reset --hard`、没有 `rebase`，也不会删除未跟踪文件。会丢弃内容、删除引用或把 HEAD 移到别处的动作（放弃、删除分支/标签、切换、检出、重置、还原、拣选、合并、拉取、推送）都先弹面板内确认框；提交与新建分支由各自的按钮直接执行。**破坏性能力是"不提供"，不是"再问一次"。**
 
 ## 能做什么
 
@@ -27,7 +27,7 @@ USTC Tokenworks 的**会话右侧栏 Git 面板**：改动清单、统一 diff�
 | ☁️ | **远程同步** | 获取（`fetch --all --prune`）、拉取（`pull --ff-only`）、推送（首次发布自动 `-u`） |
 | ⏪ | **撤销与重写** | 放弃改动、`revert`、`cherry-pick`、`reset --soft/--mixed`、检出任意提交（进游离 HEAD） |
 | 🔔 | **反馈** | 每个写操作后刷新状态并给通知条（成功 4 秒、失败 8 秒自动消失），取消确认框则一个请求都不发 |
-| 🌗 | **主题与语言** | 只用 `--dsw-alias-*` 主题 token，浅色/深色跟随 USTC Tokenworks；文案全部走 `ctx.locale`，中英双语 |
+| 🌗 | **主题与语言** | 只用 `--dsw-alias-*` 主题 token 与框架字号 token（`--dsh-content-font-size-secondary`），浅色/深色跟随 USTC Tokenworks；文案全部走 `ctx.locale`，中英双语 |
 | 🙈 | **只给人看** | 面板不注册任何 agent 工具——它服务的是坐在会话前的人 |
 | 📦 | **零依赖** | `package.json` 没有任何 dependencies；浏览器侧只 `require('react')`，Host 侧只用 USTC Tokenworks 提供的服务 |
 | 🔌 | **可卸载** | 每个注册都由 `ctx.effect` 持有，禁用插件即回收页签、标题栏按钮与样式表 |
@@ -66,7 +66,7 @@ USTC Tokenworks 的**会话右侧栏 Git 面板**：改动清单、统一 diff�
 | 离开游离 HEAD | 分支 → 切回任意分支 |
 
 > [!IMPORTANT]
-> 会移动 HEAD、改动工作区或丢弃内容的操作，**都先弹确认框**；取消则不会发出任何请求。确认框会写清后果，例如放弃改动是"无法恢复"、删分支是"只做安全删除"、拉取是"只做快进式，不会创建合并提交"。
+> 会**丢弃内容、删除引用、切换 / 检出、重置、还原、拣选、合并、拉取、推送**的操作都先弹确认框，取消则不会发出任何请求；确认框会写清后果，例如放弃改动是"无法恢复"、删分支是"只做安全删除"、拉取是"只做快进式，不会创建合并提交"。**提交与新建分支不弹框**——它们是日常动作，且都不丢弃任何东西。
 
 ## 写操作
 
@@ -74,7 +74,7 @@ USTC Tokenworks 的**会话右侧栏 Git 面板**：改动清单、统一 diff�
 
 | 操作 | git 命令 |
 | --- | --- |
-| 暂存 / 取消暂存 | `add --` / `restore --staged --`（无 HEAD 时回退 `rm --cached --force`） |
+| 暂存 / 取消暂存 | `add --` / `restore --staged --`（失败时回退 `rm --cached --force`，典型场景是没有 HEAD 的新仓库） |
 | 提交 | `commit --message`（可选 `--no-verify`） |
 | 放弃改动 | `restore --worktree --`（**仅已跟踪文件**） |
 | 新建并切换分支 | `switch -c <name> [<start>]` |
@@ -93,11 +93,12 @@ USTC Tokenworks 的**会话右侧栏 Git 面板**：改动清单、统一 diff�
 
 - **信任栅栏**：每个请求先过 `connection.requestRejection`，Host/Origin 校验与浏览器认证发生在**拿到任何仓库事实之前**。
 - **工作区栅栏**：目录必须存在，且在已注册工作区之内（`workspaceRegistry` 存在时才生效）。
-- **固定参数表**：用户输入只出现在路径、分支名、标签名、rev 四个位置，且都过本地白名单校验——ref 名不允许空格、`~^:?*[`、`..`、`@{`、结尾 `/` 或 `.lock`；rev 只允许 `[0-9a-zA-Z^~_./-]`。**没有把任意参数透传给 git 的通道。**
-- **串行写 + 超时**：写命令排队执行，用更长的 `writeTimeoutMs`（网络操作可能慢）。
+- **固定参数表**：用户输入只出现在**单个 argv 位置**——路径、分支名、标签名、rev、提交信息、远端名——每个都先过本地白名单校验。ref 名不允许空格、`~^:?*[\`、`..`、`--`、`@{`、开头 `.`/`-`、结尾 `/` `.` `.lock` 与反斜杠，且不超过 200 字符；rev 只允许 `[0-9a-zA-Z^~_./-]`、不含 `..`，且**不以 `-` 开头**。最后一条是硬约束：rev 没有 `--` 分隔符，若放行，`reset --soft --hard` 就会静默丢掉工作区——正是面板承诺不做的事。**没有把任意参数透传给 git 的通道。**
+- **路径按字面处理**：每个路径都以 `:(literal)` 前缀交给 git。否则 git 会把 `[` 当字符类展开，让名为 `file[1].txt` 的文件连带影响邻居 `file1.txt`。
+- **串行写 + 超时**：写命令排队执行，用更长的 `writeTimeoutMs`（网络操作可能慢）；超时单独映射为 504，不会被混成普通的 git 失败。
 - **只读栅栏**：`allowWrite: false` 时 Host 直接拒绝，不只是把按钮置灰。
 - **冲突不代你决定**：merge / cherry-pick / revert / pull 遇到冲突时原样显示 git 的错误，**不自动 abort，也不替你选边**；解决后照常用面板暂存与提交。
-- **未知的界面**：仓库没有配置 `user.name` / `user.email` 时提交按钮禁用并给出提示，而不是等你写完信息才失败。
+- **未知的身份**：仓库没有配置 `user.name` / `user.email` 时提交按钮禁用并给出提示，而不是等你写完信息才失败。
 
 ## 工作方式
 
@@ -156,7 +157,7 @@ sequenceDiagram
 | 路径 | 作用 |
 | --- | --- |
 | [`index.js`](index.js) | Host 半：16 个端点的注册、信任栅栏、错误码到 HTTP 状态的映射、写操作串行队列 |
-| [`lib/git.js`](lib/git.js) | git 适配器：28 个方法、porcelain v2 解析、引用名/路径守卫、只读栅栏 |
+| [`lib/git.js`](lib/git.js) | git 适配器：28 个导出成员（27 个方法 + `settings`）、porcelain v2 解析、引用名 / rev / 路径守卫、只读栅栏 |
 | [`client.js`](client.js) | Client 半：页签类型与标题、三个视图、diff 查看器、提交图、确认弹窗、整套样式 |
 | [`cordis.patch.yml`](cordis.patch.yml) | bundle patch：把插件插进当前 profile |
 | [`package.json`](package.json) | 包描述、`dsh` 清单（client 注入项）、`pnpm test` 脚本 |
@@ -172,16 +173,16 @@ pnpm test          # 或：node tools/smoke.mjs && node tools/client-smoke.mjs
 
 | 套件 | 断言 | 覆盖 |
 | --- | --- | --- |
-| [`tools/smoke.mjs`](tools/smoke.mjs) | 51 | 暂存 / 提交 / diff / 历史 / 分支 / 标签 / 放弃 / reset / 还原 / 拣选 / 合并、引用名与路径守卫、只读栅栏；远程同步用**本地裸仓库**做端到端 |
-| [`tools/client-smoke.mjs`](tools/client-smoke.mjs) | 90 | 分组与目录折叠、diff 行号 / 词级高亮 / hunk 折叠、**提交图几何**、暂存与放弃、确认弹窗的"确认"与"取消"两条路径、分支与标签表单、同步按钮、空态与错误重试、按钮描边约定 |
+| [`tools/smoke.mjs`](tools/smoke.mjs) | 63 | 暂存 / 提交 / diff / 历史 / 分支 / 标签 / 放弃 / reset / 还原 / 拣选 / 合并、引用名与 rev 守卫（含**选项注入**）、**字面 pathspec**、合并提交的两方差异、非 ASCII 路径、只读栅栏；远程同步用**本地裸仓库**做端到端 |
+| [`tools/client-smoke.mjs`](tools/client-smoke.mjs) | 100 | 分组与**目录折叠**、diff 行号 / 词级高亮 / **hunk 折叠**、**提交图几何**（含**菱形汇聚**：兄弟分支不得被拐进错误的提交点）、暂存与放弃、确认弹窗的"确认"与"取消"两条路径、分支与标签表单、同步按钮、空态与错误重试、按钮描边约定 |
 
 > [!NOTE]
 > **两处如实标注的边界。**
 > 一是**平台**：代码里没有平台专有分支（路径分隔符在解析层归一），但**目前只在 Windows 上实测过**，macOS / Linux 未经真机验证。
-> 二是**远程往返**：在本机沙箱里，git 调远程命令时会 fork `sh.exe`，而沙箱禁止创建命名管道（`couldn't create signal pipe, Win32 error 5`），所以 push / pull / fetch 的**端到端**那一项会显示 `SKIP` 而不是假装通过——它们仍按**调用参数形状**被断言。在不受限的终端里重跑即可执行真实往返。
+> 二是**远程往返**：在受限沙箱里，git 调远程命令会 fork `sh.exe`，而沙箱禁止创建命名管道（`couldn't create signal pipe, Win32 error 5`），那一项会显示 `SKIP` 而不是假装通过（它仍按**调用参数形状**被断言）。在不受限的环境里它真实执行——本机当前就是这种状态，输出为 63 PASS / 0 SKIP。
 
 ## 许可
 
 本仓代码采用 **MIT**，见 [LICENSE](LICENSE)。可自由使用、修改、分发，包括闭源商用，只需保留版权声明。
 
-本项目的实现全部自行完成，**不含任何第三方库**：Host 只使用 USTC Tokenworks 提供的 `ctx.subprocess`、`ctx.fs`、`ctx.webServer`、`ctx.connection` 与 `ctx.locale`；浏览器侧只 `require('react')`。
+本项目的实现全部自行完成，**不含任何第三方库**：Host 只使用 USTC Tokenworks 提供的 `ctx.subprocess`、`ctx.webServer`、`ctx.connection`，以及通过 `ctx.get` 取到的 `fs` 与 `workspaceRegistry`；浏览器侧只 `require('react')`，文案与配色走客户端的 `ctx.locale` 与 `--dsw-*` 主题 token。

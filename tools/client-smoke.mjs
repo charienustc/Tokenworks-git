@@ -642,6 +642,28 @@ function postTo(harness, path) {
     JSON.stringify(dirLabels),
   );
 
+  // A directory row folds the files underneath it.
+  const filesBeforeFold = h.byClass('tw-git-filemain').length;
+  h.click(h.byClass('tw-git-dirrow').find((node) => h.text(node).includes('src')));
+  await h.settle();
+  const filesFolded = h.byClass('tw-git-filemain').length;
+  check(
+    'ready: folding a directory hides its files',
+    filesFolded < filesBeforeFold,
+    `${String(filesBeforeFold)} → ${String(filesFolded)}`,
+  );
+  check(
+    'ready: the folded directory row stays',
+    h.byClass('tw-git-dirrow').some((node) => h.text(node).includes('src')),
+  );
+  h.click(h.byClass('tw-git-dirrow').find((node) => h.text(node).includes('src')));
+  await h.settle();
+  check(
+    'ready: unfolding it restores them',
+    h.byClass('tw-git-filemain').length === filesBeforeFold,
+    h.byClass('tw-git-filemain').length,
+  );
+
   // Select a file and inspect the diff.
   const fileRows = h.byClass('tw-git-filemain');
   check('ready: file rows render', fileRows.length === 4, fileRows.length);
@@ -1054,6 +1076,90 @@ function postTo(harness, path) {
   check(
     'header: the button carries the same pill outline as the panel',
     /\.tw-git-openbtn\{[^}]*border:\.5px solid/.test(h.text()),
+  );
+}
+
+// ==============================================================================
+// Scenario: a diamond joins both branches on the shared parent's own row
+// ==============================================================================
+{
+  const hash = (ch) => ch.repeat(40);
+  const commit = (ch, parents, subject) => ({
+    hash: hash(ch),
+    parents: parents.map(hash),
+    author: 'Tester',
+    date: '2026-10-10T12:00:00+08:00',
+    refs: [],
+    subject,
+  });
+  const h = createHarness({
+    responder: (url) => {
+      const target = new URL(url, 'http://localhost');
+      if (target.pathname === `${API}/status`) return statusPayload();
+      if (target.pathname === `${API}/remotes`) return { ok: true, remotes: [] };
+      if (target.pathname === `${API}/log`) {
+        return {
+          ok: true,
+          commits: [
+            commit('m', ['a', 'b'], 'merge'),
+            commit('a', ['c'], 'branch A'),
+            commit('b', ['c'], 'branch B'),
+            commit('c', [], 'shared base'),
+          ],
+        };
+      }
+      return { ok: true };
+    },
+  });
+  await h.mountBody();
+  h.click(h.byText('历史')[0]);
+  await h.settle();
+
+  const rows = h.byClass('tw-git-commit-row');
+  check('diamond: four commits render', rows.length === 4, rows.length);
+  const pathsOf = (index) =>
+    h
+      .descendants(h.descendants(rows[index], (node) => node.type === 'svg')[0], (node) => node.type === 'path')
+      .map((node) => node.props.d);
+
+  const mergePaths = pathsOf(0);
+  check(
+    'diamond: the merge dot opens two lanes',
+    mergePaths.some((d) => d === 'M 8 21 L 8 42') && mergePaths.some((d) => d.includes('22 42')),
+    JSON.stringify(mergePaths),
+  );
+  // Row 1 is branch A, whose first parent is the shared base it claims for lane 0;
+  // branch B's lane must keep running straight through this row.
+  const branchAPaths = pathsOf(1);
+  check(
+    'diamond: the sibling lane passes through the row above the shared parent',
+    branchAPaths.some((d) => d === 'M 22 0 L 22 42'),
+    JSON.stringify(branchAPaths),
+  );
+  check(
+    'diamond: branch A carries its own edge down its lane',
+    branchAPaths.some((d) => d === 'M 8 21 L 8 42'),
+    JSON.stringify(branchAPaths),
+  );
+  // Row 2 is branch B: its parent is already claimed by lane 0, so B's edge bends
+  // into that lane and lane 0 spans the row. Forcing the parent into B's own lane
+  // here is the old bug: it cleared lane 0 and bent A's branch into B's dot.
+  const branchBPaths = pathsOf(2);
+  check(
+    'diamond: the shared lane is not stolen by the second branch',
+    branchBPaths.some((d) => d === 'M 8 0 L 8 42'),
+    JSON.stringify(branchBPaths),
+  );
+  check(
+    'diamond: the second branch bends into the shared lane',
+    branchBPaths.some((d) => d.startsWith('M 22 21 C')) && !branchBPaths.some((d) => d.startsWith('M 8 0 L 8 16')),
+    JSON.stringify(branchBPaths),
+  );
+  const basePaths = pathsOf(3);
+  check(
+    'diamond: the shared base joins on the surviving lane',
+    basePaths.some((d) => d === 'M 8 0 L 8 21') && !basePaths.some((d) => d.includes('22')),
+    JSON.stringify(basePaths),
   );
 }
 

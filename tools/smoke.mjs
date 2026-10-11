@@ -262,6 +262,25 @@ check(
   keptUntracked.changes.untracked.some((entry) => entry.path === 'fresh.txt'),
 );
 
+// --- literal pathspecs --------------------------------------------------------
+// Git reads `[1]` inside a pathspec as a character class, so discarding
+// `file[1].txt` must not reach a neighbouring `file1.txt`.
+await writeFile(join(scratch, 'file1.txt'), 'one\n', 'utf8');
+await writeFile(join(scratch, 'file[1].txt'), 'bracket\n', 'utf8');
+await git.stage(scratch, ['file1.txt', 'file[1].txt']);
+await git.commit(scratch, 'glob neighbours');
+await writeFile(join(scratch, 'file1.txt'), 'one changed\n', 'utf8');
+await writeFile(join(scratch, 'file[1].txt'), 'bracket changed\n', 'utf8');
+await git.discard(scratch, ['file[1].txt']);
+const neighbours = await git.status(scratch);
+check(
+  'discard: a bracketed filename does not glob onto its neighbour',
+  neighbours.changes.unstaged.some((entry) => entry.path === 'file1.txt') &&
+    !neighbours.changes.unstaged.some((entry) => entry.path === 'file[1].txt'),
+  JSON.stringify(neighbours.changes.unstaged.map((entry) => entry.path)),
+);
+await git.discard(scratch, ['file1.txt']);
+
 // --- branches ----------------------------------------------------------------
 await git.createBranch(scratch, 'feature/x', null, true);
 const onFeature = await git.status(scratch);
@@ -294,6 +313,29 @@ check(
   unmerged !== null && /未合并/.test(unmerged.message),
   unmerged && unmerged.message,
 );
+
+// --- tags ---------------------------------------------------------------------
+const headForTag = await git.log(scratch, { limit: 1 });
+await git.createTag(scratch, 'v0.1.0', headForTag.commits[0].hash.slice(0, 7));
+const tagged = await git.branches(scratch);
+check(
+  'tag: creating names the current commit',
+  tagged.refs.some((entry) => entry.kind === 'tag' && entry.name === 'v0.1.0'),
+  JSON.stringify(tagged.refs.filter((entry) => entry.kind === 'tag').map((entry) => entry.name)),
+);
+await git.deleteTag(scratch, 'v0.1.0');
+const untagged = await git.branches(scratch);
+check(
+  'tag: deleting removes it again',
+  !untagged.refs.some((entry) => entry.kind === 'tag' && entry.name === 'v0.1.0'),
+);
+let badTag = null;
+try {
+  await git.createTag(scratch, 'bad tag', null);
+} catch (error) {
+  badTag = error;
+}
+check('tag: a malformed name is rejected', badTag !== null && badTag.code === 'bad-request');
 
 // --- cherry-pick --------------------------------------------------------------
 await git.cherryPick(scratch, wipCommit.hash);
@@ -383,6 +425,51 @@ try {
   badRev = error;
 }
 check('guard: a rev that could escape is rejected', badRev !== null && badRev.code === 'bad-request');
+
+// A rev travels as its own argv element with no `--` separator, so anything
+// option-shaped must be refused: `git reset --soft --hard` would discard the
+// work tree, which is precisely what this panel promises never to do.
+await writeFile(join(scratch, 'injection.txt'), 'do not lose me\n', 'utf8');
+let injectedReset = null;
+try {
+  await git.reset(scratch, '--hard', 'soft');
+} catch (error) {
+  injectedReset = error;
+}
+check(
+  'guard: reset refuses an option-shaped rev',
+  injectedReset !== null && injectedReset.code === 'bad-request',
+  injectedReset && injectedReset.code,
+);
+check(
+  'guard: the refused reset left the work tree alone',
+  (await git.status(scratch)).changes.untracked.some((entry) => entry.path === 'injection.txt'),
+);
+
+let injectedSwitch = null;
+try {
+  await git.checkout(scratch, '-f', { detach: true });
+} catch (error) {
+  injectedSwitch = error;
+}
+check(
+  'guard: checkout refuses an option-shaped rev',
+  injectedSwitch !== null && injectedSwitch.code === 'bad-request',
+  injectedSwitch && injectedSwitch.code,
+);
+
+let injectedDetail = null;
+try {
+  await git.commitDetail(scratch, '--output=leak.txt');
+} catch (error) {
+  injectedDetail = error;
+}
+check(
+  'guard: commit detail refuses an option-shaped rev',
+  injectedDetail !== null && injectedDetail.code === 'bad-request',
+  injectedDetail && injectedDetail.code,
+);
+await rm(join(scratch, 'injection.txt'), { force: true });
 
 // --- detached checkout --------------------------------------------------------
 const headNow = await git.log(scratch, { limit: 1 });
@@ -486,6 +573,35 @@ try {
   readOnlyDiscard = error;
 }
 check('guard: allowWrite=false blocks discard', readOnlyDiscard !== null && readOnlyDiscard.code === 'read-only');
+
+// --- merge commits and non-ASCII paths ----------------------------------------
+// A merge's patch defaults to the combined `diff --cc` format, which the panel's
+// parser cannot read; the adapter asks for a two-way, first-parent patch instead.
+const allCommits = await git.log(scratch, { limit: 80 });
+const mergeCommit = allCommits.commits.find((commit) => commit.parents.length > 1);
+check('fixture: the history contains a merge commit', mergeCommit !== undefined);
+const mergeDetail = mergeCommit === undefined ? null : await git.commitDetail(scratch, mergeCommit.hash);
+check(
+  'commit detail: a merge patch stays in the two-way format',
+  mergeDetail !== null && !/^diff --cc /m.test(mergeDetail.patch) && !/^@@@ /m.test(mergeDetail.patch),
+  mergeDetail === null
+    ? 'no merge commit'
+    : JSON.stringify(mergeDetail.patch.split('\n').find((line) => line.startsWith('diff '))),
+);
+
+// git quotes non-ASCII paths by default, which would blank out the panel's file
+// list, so the diff commands run with `core.quotePath=false`.
+await writeFile(join(scratch, '中文名.txt'), 'hello\n', 'utf8');
+await git.stage(scratch, ['中文名.txt']);
+await git.commit(scratch, 'unicode path');
+await writeFile(join(scratch, '中文名.txt'), 'hello again\n', 'utf8');
+const unicodeDiff = await git.diff(scratch, { side: 'worktree', path: '中文名.txt' });
+check(
+  'diff: a non-ASCII path survives unquoted',
+  unicodeDiff.text.includes('diff --git a/中文名.txt b/中文名.txt'),
+  JSON.stringify(unicodeDiff.text.split('\n')[0]),
+);
+await git.discard(scratch, ['中文名.txt']);
 
 await rm(remoteDir, { recursive: true, force: true });
 await rm(scratch, { recursive: true, force: true });

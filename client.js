@@ -41,15 +41,10 @@ window.__ModuleLoader__.load({
       'tab.branches': '分支',
       'state.loading': '正在读取仓库…',
       'state.noWorkspace': '这个会话还没有工作区目录。',
-      'state.notRepo': '这个目录不是 git 仓库。',
-      'state.notRepoPath': '这个目录不是 git 仓库：',
       'state.retry': '重试',
       'state.refresh': '刷新',
       'state.unborn': '还没有任何提交',
       'state.detached': '游离 HEAD',
-      'state.upstream': '上游',
-      'state.ahead': '领先',
-      'state.behind': '落后',
       'state.clean': '工作区干净，没有未提交的改动。',
       'group.conflicted': '冲突',
       'group.staged': '已暂存',
@@ -62,7 +57,6 @@ window.__ModuleLoader__.load({
       'commit.placeholder': '提交信息…',
       'commit.submit': '提交',
       'commit.count': '已暂存 {n} 个文件',
-      'commit.needsMessage': '先写提交信息',
       'commit.noneStaged': '还没有暂存任何文件',
       'commit.readOnly': '插件当前是只读模式（allowWrite: false）',
       'commit.noIdentity': '这个仓库还没有配置 user.name / user.email，无法提交。',
@@ -71,13 +65,11 @@ window.__ModuleLoader__.load({
       'diff.empty': '这个文件没有可显示的差异。',
       'diff.binary': '二进制文件，无法显示文本差异。',
       'diff.truncated': '差异过大，只显示了一部分。',
-      'diff.tooLarge': '文件过大，未读取内容。',
       'history.all': '全部引用',
       'history.empty': '还没有提交。',
       'history.loading': '正在读取提交历史…',
       'history.back': '返回列表',
       'history.files': '变更文件',
-      'history.open': '查看提交',
       'branches.local': '本地分支',
       'branches.remote': '远程分支',
       'branches.tag': '标签',
@@ -119,7 +111,6 @@ window.__ModuleLoader__.load({
       'op.tagCreate': '新建标签',
       'op.tagDelete': '删除标签',
       'op.discard': '放弃改动',
-      'op.discardAll': '放弃全部改动',
       'op.fetch': '获取',
       'op.pull': '拉取',
       'op.push': '推送',
@@ -169,15 +160,10 @@ window.__ModuleLoader__.load({
       'tab.branches': 'Branches',
       'state.loading': 'Reading the repository…',
       'state.noWorkspace': 'This Session has no workspace directory.',
-      'state.notRepo': 'This directory is not a git repository.',
-      'state.notRepoPath': 'This directory is not a git repository: ',
       'state.retry': 'Retry',
       'state.refresh': 'Refresh',
       'state.unborn': 'No commits yet',
       'state.detached': 'Detached HEAD',
-      'state.upstream': 'Upstream',
-      'state.ahead': 'ahead',
-      'state.behind': 'behind',
       'state.clean': 'The working tree is clean.',
       'group.conflicted': 'Conflicts',
       'group.staged': 'Staged',
@@ -190,7 +176,6 @@ window.__ModuleLoader__.load({
       'commit.placeholder': 'Commit message…',
       'commit.submit': 'Commit',
       'commit.count': '{n} staged file(s)',
-      'commit.needsMessage': 'Write a commit message first',
       'commit.noneStaged': 'Nothing is staged yet',
       'commit.readOnly': 'The plugin runs read-only (allowWrite: false)',
       'commit.noIdentity': 'This repository has no user.name / user.email, so it cannot commit.',
@@ -199,13 +184,11 @@ window.__ModuleLoader__.load({
       'diff.empty': 'No text difference to show.',
       'diff.binary': 'Binary file: no text diff.',
       'diff.truncated': 'The diff is large; only part of it is shown.',
-      'diff.tooLarge': 'The file is too large to read.',
       'history.all': 'All refs',
       'history.empty': 'No commits yet.',
       'history.loading': 'Reading history…',
       'history.back': 'Back to the list',
       'history.files': 'Changed files',
-      'history.open': 'Open the commit',
       'branches.local': 'Local',
       'branches.remote': 'Remote',
       'branches.tag': 'Tags',
@@ -247,7 +230,6 @@ window.__ModuleLoader__.load({
       'op.tagCreate': 'New tag',
       'op.tagDelete': 'Delete tag',
       'op.discard': 'Discard changes',
-      'op.discardAll': 'Discard all changes',
       'op.fetch': 'Fetch',
       'op.pull': 'Pull',
       'op.push': 'Push',
@@ -596,13 +578,25 @@ window.__ModuleLoader__.load({
         }
         const before = lanes.slice();
         const parents = commit.parents;
-        if (parents.length === 0) lanes[lane] = null;
-        else lanes[lane] = parents[0];
+        // A previous row may already be heading for this commit's first parent
+        // (the diamond: M→[A,B], A→C, B→C). Forcing that parent into this row's own
+        // lane would clear the other lane here, and the renderer would then bend
+        // that branch into *this* dot instead of letting it continue to C. Reuse
+        // the lane that already carries it and retire this row's lane instead.
+        const shared = parents.length === 0 ? -1 : lanes.indexOf(parents[0]);
+        if (parents.length === 0) {
+          lanes[lane] = null;
+        } else if (shared !== -1 && shared !== lane) {
+          lanes[lane] = null;
+          lanes[shared] = parents[0];
+        } else {
+          lanes[lane] = parents[0];
+        }
         const parentLanes = [];
         for (let index = 0; index < parents.length; index += 1) {
           const parent = parents[index];
           if (index === 0) {
-            parentLanes.push(lane);
+            parentLanes.push(shared !== -1 && shared !== lane ? shared : lane);
             continue;
           }
           let target = lanes.indexOf(parent);
@@ -617,7 +611,8 @@ window.__ModuleLoader__.load({
           parentLanes.push(target);
         }
         for (let index = 0; index < lanes.length; index += 1) {
-          if (index !== lane && lanes[index] !== null && lanes[index] === lanes[lane]) lanes[index] = null;
+          if (index === lane || index === shared) continue;
+          if (lanes[index] !== null && lanes[index] === lanes[lane]) lanes[index] = null;
         }
         while (lanes.length > 0 && lanes[lanes.length - 1] === null) lanes.pop();
         rows.push({ commit, lane, entering, before, after: lanes.slice(), parentLanes });
@@ -753,7 +748,7 @@ window.__ModuleLoader__.load({
     /** One line's text, with the word-level marks of a replaced pair applied. */
     function lineText(line) {
       if (line.kind === 'meta') return line.text;
-      if (line.segments === null || line.segments === undefined) return line.text.slice(1);
+      if (line.segments === null || line.segments === undefined) return line.text.slice(1).replace(/\r$/, '');
       return line.segments.map((part, index) =>
         part.changed
           ? h('mark', { key: String(index), className: 'tw-git-word' }, part.text)
@@ -1161,13 +1156,19 @@ window.__ModuleLoader__.load({
         ),
       );
       if (selection === null) return list;
+      // The selection carries the letter it had when the file was picked; after a
+      // stage or unstage the live group entry knows the current one.
+      const liveEntry = groups
+        .map((group) => group.entries.find((entry) => entry.key === selection.key))
+        .find((entry) => entry !== undefined);
+      const letter = liveEntry === undefined ? selection.letter : liveEntry.letter;
       const pane = h(
         'div',
         { key: 'diff', className: 'tw-git-diff' },
         h(
           'div',
           { className: 'tw-git-diffhead' },
-          h('span', { className: markClass(selection.letter) }, selection.letter),
+          h('span', { className: markClass(letter) }, letter),
           h('span', { className: 'tw-git-path', title: selection.path }, selection.path),
           h('span', { className: 'tw-git-spacer' }),
           h(
@@ -1499,7 +1500,15 @@ window.__ModuleLoader__.load({
         { className: 'tw-git-overlay' },
         h(
           'div',
-          { className: 'tw-git-dialog', role: 'dialog', 'aria-modal': 'true' },
+          {
+            className: 'tw-git-dialog',
+            role: 'dialog',
+            'aria-modal': 'true',
+            'aria-label': request.title,
+            onKeyDown: (event) => {
+              if (event.key === 'Escape') onCancel();
+            },
+          },
           h('p', { className: 'tw-git-dialogtitle' }, request.title),
           request.detail === undefined || request.detail === null
             ? null
@@ -1509,7 +1518,7 @@ window.__ModuleLoader__.load({
             { className: 'tw-git-dialogrow' },
             h(
               'button',
-              { type: 'button', className: 'tw-git-ghost', onClick: onCancel },
+              { type: 'button', className: 'tw-git-ghost', onClick: onCancel, autoFocus: true },
               t('confirm.cancel'),
             ),
             h(
@@ -1557,7 +1566,7 @@ window.__ModuleLoader__.load({
         setForm(null);
       };
       const onFormKey = (event) => {
-        if (event.key === 'Enter') submitForm();
+        if (event.key === 'Enter' && busy === null) submitForm();
       };
       const namePlaceholder = form === null || form.kind === 'branch' ? t('branch.namePlaceholder') : t('tag.namePlaceholder');
       const startPlaceholder = form === null || form.kind === 'branch' ? t('branch.startPlaceholder') : t('tag.revPlaceholder');
@@ -1900,8 +1909,8 @@ window.__ModuleLoader__.load({
       const [view, setView] = useState('changes');
       const [selection, setSelection] = useState(null);
       const [diff, setDiff] = useState({ phase: 'idle' });
-      const [history, setHistory] = useState({ phase: 'idle', commits: [] });
-      const [branches, setBranches] = useState({ phase: 'idle', refs: [] });
+      const [history, setHistory] = useState({ phase: 'loading', commits: [] });
+      const [branches, setBranches] = useState({ phase: 'loading', refs: [] });
       const [detail, setDetail] = useState({ phase: 'idle', commit: null });
       const [allRefs, setAllRefs] = useState(false);
       const [message, setMessage] = useState('');
@@ -2379,6 +2388,7 @@ window.__ModuleLoader__.load({
         onRefresh: () => {
           refresh({ announce: false });
           if (view === 'history') loadHistory();
+          if (view === 'branches') loadBranches();
         },
         t,
       });
