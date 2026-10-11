@@ -38,6 +38,13 @@ window.__ModuleLoader__.load({
       revert: 'operation.revert',
       rebase: 'operation.rebase',
     };
+    /** What abandoning each operation actually does, spelled out per operation. */
+    const ABORT_DETAIL = {
+      merge: 'confirm.abortMerge',
+      'cherry-pick': 'confirm.abortCherryPick',
+      revert: 'confirm.abortRevert',
+      rebase: 'confirm.abortRebase',
+    };
 
     /** Simplified Chinese dictionary and key-set source of truth. */
     const zh = {
@@ -83,10 +90,13 @@ window.__ModuleLoader__.load({
       'operation.revert': '还原未完成',
       'operation.rebase': '变基未完成',
       'operation.unknown': '有未解决的冲突',
-      'operation.hint': '解决「冲突」组里的文件后暂存并提交；或放弃这次操作。',
+      'operation.hint': '解决「冲突」组里的文件后暂存并提交；或放弃，把它当作没发生过。',
       'operation.abort': '放弃这次操作',
       'operation.aborted': '已放弃这次操作',
-      'confirm.abortDetail': '会回到操作前的状态，已经做的冲突解决会丢失。',
+      'confirm.abortMerge': '撤销这次合并，回到合并前的状态：当前分支的提交不变，对方分支的改动不会被合并进来，你已经做的冲突解决会丢失。',
+      'confirm.abortCherryPick': '撤销这次拣选，回到拣选前的状态：该提交的改动不会被应用，你已经做的冲突解决会丢失。',
+      'confirm.abortRevert': '撤销这次还原，回到还原前的状态，你已经做的冲突解决会丢失。',
+      'confirm.abortRebase': '撤销这次变基，回到变基前的状态，你已经做的冲突解决会丢失。',
       'diff.conflictNote': '冲突文件：下面是当前内容（含 <<<<<<< 标记）。解决后暂存即表示冲突已解决。',
       'diff.empty': '这个文件没有可显示的差异。',
       'diff.binary': '二进制文件，无法显示文本差异。',
@@ -221,10 +231,13 @@ window.__ModuleLoader__.load({
       'operation.revert': 'Revert in progress',
       'operation.rebase': 'Rebase in progress',
       'operation.unknown': 'Unresolved conflicts',
-      'operation.hint': 'Resolve the files in the Conflicts group, then stage and commit; or abandon it.',
+      'operation.hint': 'Resolve the files in the Conflicts group, then stage and commit; or abandon it and pretend it never started.',
       'operation.abort': 'Abandon it',
       'operation.aborted': 'Abandoned',
-      'confirm.abortDetail': 'Returns to the state before it started; resolutions made so far are lost.',
+      'confirm.abortMerge': 'Undoes this merge and returns to the state before it: your branch keeps its commits, the other branch is not merged in, and conflict resolutions made so far are lost.',
+      'confirm.abortCherryPick': 'Undoes this cherry-pick and returns to the state before it: the commit is not applied, and resolutions made so far are lost.',
+      'confirm.abortRevert': 'Undoes this revert and returns to the state before it; resolutions made so far are lost.',
+      'confirm.abortRebase': 'Undoes this rebase and returns to the state before it; resolutions made so far are lost.',
       'diff.conflictNote': 'Conflicted file: this is the current content, markers included. Staging it marks the conflict resolved.',
       'diff.empty': 'No text difference to show.',
       'diff.binary': 'Binary file: no text diff.',
@@ -2690,7 +2703,7 @@ window.__ModuleLoader__.load({
         if (operation === null || operation === undefined) return;
         ask({
           title: t('operation.abort'),
-          detail: t('confirm.abortDetail'),
+          detail: t(ABORT_DETAIL[operation] ?? 'confirm.abortMerge'),
           label: t('operation.abort'),
           danger: true,
           run: () => api.abort(root, operation),

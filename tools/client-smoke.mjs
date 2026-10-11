@@ -1522,8 +1522,10 @@ function postTo(harness, path) {
   await h.settle();
   const dialog = h.byClass('tw-git-dialog')[0];
   check(
-    'conflict: abandoning it asks first and warns what is lost',
-    dialog !== undefined && h.text(dialog).includes('冲突解决会丢失'),
+    'conflict: abandoning it asks first and says what that means',
+    dialog !== undefined &&
+      h.text(dialog).includes('对方分支的改动不会被合并进来') &&
+      h.text(dialog).includes('冲突解决会丢失'),
     dialog && h.text(dialog),
   );
   h.click(h.descendants(dialog, (node) => node.type === 'button')[0]);
