@@ -1,31 +1,24 @@
-# You can override the included template(s) by including variable overrides
-# SAST customization: https://docs.gitlab.com/user/application_security/sast/#available-cicd-variables
-# Secret Detection customization: https://docs.gitlab.com/user/application_security/secret_detection/pipeline/configure/
-# Dependency Scanning customization: https://docs.gitlab.com/user/application_security/dependency_scanning/dependency_scanning_sbom/#customizing-analyzer-behavior
-# Container Scanning customization: https://docs.gitlab.com/user/application_security/container_scanning/#customizing-analyzer-behavior
-# Note that environment variables can be set in several places
-# See https://docs.gitlab.com/ci/variables/#cicd-variable-precedence
-stages:
-- build
-- test
-- deploy
-- review
-- dast
-- staging
-- canary
-- production
-- incremental rollout 10%
-- incremental rollout 25%
-- incremental rollout 50%
-- incremental rollout 100%
-- performance
-- cleanup
-- secret-detection
-sast:
-  stage: test
-include:
-- template: Auto-DevOps.gitlab-ci.yml
-variables:
-  SECRET_DETECTION_ENABLED: 'true'
-secret_detection:
-  stage: secret-detection
+# 本校 GitLab 实例没有为本仓库提供可用的 GitLab Runner（项目可用 runner 列表为空），
+# 任何 job 都只会排队到 build_timeout（3600s）后被判失败，于是每次推送都会收到一封
+# "Failed pipeline" 通知邮件。所以这里显式声明不创建流水线，而不是留一份必然失败的配置。
+#
+# 将来若本仓库有了 runner，把 workflow 规则改为 when: always 即可恢复 CI。恢复时不要再用
+# Auto-DevOps 模板（build / test / code_quality / deploy 对一个 DSH 插件包没有意义），
+# 改为只保留安全扫描：
+#
+#   include:
+#     - template: Jobs/SAST.gitlab-ci.yml
+#     - template: Jobs/Secret-Detection.gitlab-ci.yml
+#   variables:
+#     SECRET_DETECTION_ENABLED: 'true'
+workflow:
+  rules:
+    - when: never
+
+# GitLab 的 CI Lint 要求配置里至少有一个可见 job。上面的 workflow 规则已经保证不创建
+# 任何流水线，所以这个占位任务永远不会运行，也不需要一个 runner。
+no-pipeline:
+  rules:
+    - when: never
+  script:
+    - echo "unreachable"
