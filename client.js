@@ -29,6 +29,8 @@ window.__ModuleLoader__.load({
     const API = '/git-panel';
     /** Poll cadence while the tab is on screen. */
     const REFRESH_MS = 5000;
+    /** Slower cadence for the composer branch chip, which is always on screen. */
+    const DOCK_REFRESH_MS = 10000;
 
     /** Simplified Chinese dictionary and key-set source of truth. */
     const zh = {
@@ -36,6 +38,14 @@ window.__ModuleLoader__.load({
       'guide.title': 'Git',
       'guide.description': '查看工作区的改动、差异与提交历史，并暂存或提交',
       'header.open': '打开 Git 面板',
+      'dock.branch': '当前分支',
+      'dock.loading': '正在读取分支…',
+      'dock.empty': '没有其他本地分支。',
+      'dock.detached': '游离 HEAD',
+      'dock.confirmTitle': '切换到 {branch}？',
+      'dock.confirmDetail': '切换会更新工作区文件；有会被覆盖的未提交改动时，git 会拒绝。',
+      'dock.confirm': '切换',
+      'dock.cancel': '取消',
       'tab.changes': '改动',
       'tab.history': '历史',
       'tab.branches': '分支',
@@ -155,6 +165,14 @@ window.__ModuleLoader__.load({
       'guide.title': 'Git',
       'guide.description': 'Changes, diffs and history for this workspace, with staging and commit',
       'header.open': 'Open the Git panel',
+      'dock.branch': 'Current branch',
+      'dock.loading': 'Reading branches…',
+      'dock.empty': 'No other local branch.',
+      'dock.detached': 'Detached HEAD',
+      'dock.confirmTitle': 'Switch to {branch}?',
+      'dock.confirmDetail': 'Switching updates files in the working tree; git refuses when uncommitted changes would be overwritten.',
+      'dock.confirm': 'Switch',
+      'dock.cancel': 'Cancel',
       'tab.changes': 'Changes',
       'tab.history': 'History',
       'tab.branches': 'Branches',
@@ -919,6 +937,31 @@ window.__ModuleLoader__.load({
     const OPEN_CSS = [
       '.tw-git-openbtn{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;border:.5px solid var(--dsw-alias-border-l1);border-radius:999px;background:0 0;color:var(--dsw-alias-label-secondary);cursor:pointer}',
       '.tw-git-openbtn:hover{border-color:var(--dsw-alias-label-secondary);background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-2));color:var(--dsw-alias-label-primary)}',
+    ].join('');
+
+    /**
+     * The composer chip carries its own rules: the panel's stylesheet only exists
+     * while the tab is mounted, and the chip must look right without it.
+     */
+    const DOCK_CSS = [
+      '.tw-git-dock{display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:6px}',
+      '.tw-git-dockchip{display:inline-flex;align-items:center;gap:5px;max-width:100%;padding:2px 9px;border:.5px solid var(--dsw-alias-border-l2);border-radius:999px;background:transparent;color:var(--dsw-alias-label-secondary);font-size:11px;line-height:1.7;cursor:pointer;font-family:inherit}',
+      '.tw-git-dockchip:hover{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary)}',
+      '.tw-git-dockname{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.tw-git-dockmeta{color:var(--dsw-alias-label-secondary);font-variant-numeric:tabular-nums;opacity:.85}',
+      '.tw-git-dockmenu{display:flex;flex-direction:column;min-width:190px;max-width:300px;max-height:240px;overflow:auto;padding:4px;border:.5px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-overlay,var(--dsw-alias-bg-layer-2));box-shadow:0 8px 22px color-mix(in srgb,var(--dsw-alias-bg-base) 40%,transparent)}',
+      '.tw-git-dockrow{display:flex;align-items:center;gap:6px;width:100%;box-sizing:border-box;padding:4px 7px;border:.5px solid transparent;border-radius:6px;background:transparent;color:var(--dsw-alias-label-secondary);font-size:12px;text-align:left;cursor:pointer;font-family:inherit}',
+      '.tw-git-dockrow:hover{background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary)}',
+      '.tw-git-dockrow.current{border-color:var(--dsw-alias-border-l2);color:var(--dsw-alias-label-primary);cursor:default}',
+      '.tw-git-dockconfirm{display:flex;flex-direction:column;gap:5px;padding:6px 7px}',
+      '.tw-git-docktitle{color:var(--dsw-alias-label-primary);font-size:12px;font-weight:600}',
+      '.tw-git-docknote{color:var(--dsw-alias-label-secondary);font-size:11px;line-height:1.5;padding:2px 7px}',
+      '.tw-git-dockerror{color:var(--dsw-alias-state-error-primary);font-size:11px;line-height:1.5;padding:2px 7px;word-break:break-word}',
+      '.tw-git-dockactions{display:flex;align-items:center;justify-content:flex-end;gap:6px}',
+      '.tw-git-dockbtn{padding:3px 10px;border:.5px solid var(--dsw-alias-border-l2);border-radius:999px;background:transparent;color:var(--dsw-alias-label-primary);font-size:11px;line-height:1.7;cursor:pointer;font-family:inherit}',
+      '.tw-git-dockbtn:hover{background:var(--dsw-alias-bg-layer-1)}',
+      '.tw-git-dockbtn.primary{border-color:var(--dsw-alias-brand-primary);color:var(--dsw-alias-brand-primary)}',
+      '.tw-git-dockbtn:disabled{opacity:.5;cursor:default}',
     ].join('');
 
     /** The button in the Session header that opens this tab. */
@@ -1895,6 +1938,181 @@ window.__ModuleLoader__.load({
       return h(React.Fragment, null, nodes);
     }
 
+    /**
+     * The branch chip under the composer: the Session workspace's current branch,
+     * and on click the local branches to switch to. It renders nothing unless the
+     * workspace is a git repository, so it stays out of the way everywhere else,
+     * and it is the only surface that shows git state without opening the panel.
+     */
+    function GitBranchDock(props) {
+      const { sessionId, useSessions, t } = props;
+      const cwd = useSessions((sessions) => {
+        const row = sessions.byId[sessionId];
+        return row === undefined ? undefined : row.cwd;
+      });
+      const [status, setStatus] = useState({ phase: 'idle', data: null });
+      /** `null` is closed; otherwise the list, the confirm step and its outcome. */
+      const [menu, setMenu] = useState(null);
+
+      const refresh = useCallback(async () => {
+        if (typeof cwd !== 'string' || cwd === '') {
+          setStatus({ phase: 'idle', data: null });
+          return;
+        }
+        try {
+          const payload = await api.status(cwd);
+          setStatus({ phase: 'ready', data: payload.status ?? null });
+        } catch {
+          setStatus({ phase: 'error', data: null });
+        }
+      }, [cwd]);
+
+      useEffect(() => {
+        void refresh();
+        const timer = setInterval(() => {
+          void refresh();
+        }, DOCK_REFRESH_MS);
+        return () => {
+          clearInterval(timer);
+        };
+      }, [refresh]);
+
+      const openMenu = useCallback(async () => {
+        if (typeof cwd !== 'string' || cwd === '') return;
+        setMenu({ phase: 'loading', refs: [], error: null, pending: null, busy: false });
+        try {
+          const data = await api.branches(cwd);
+          setMenu({
+            phase: 'ready',
+            refs: (data.refs ?? []).filter((ref) => ref.kind === 'local'),
+            error: null,
+            pending: null,
+            busy: false,
+          });
+        } catch (error) {
+          setMenu({
+            phase: 'error',
+            refs: [],
+            error: String((error && error.message) || error),
+            pending: null,
+            busy: false,
+          });
+        }
+      }, [cwd]);
+
+      const confirmSwitch = useCallback(async () => {
+        if (menu === null || menu.pending === null || typeof cwd !== 'string') return;
+        const branch = menu.pending;
+        setMenu({ ...menu, busy: true, error: null });
+        try {
+          await api.checkout(cwd, branch, false);
+          setMenu(null);
+          await refresh();
+        } catch (error) {
+          setMenu({ ...menu, busy: false, error: String((error && error.message) || error) });
+        }
+      }, [cwd, menu, refresh]);
+
+      const repo =
+        status.phase === 'ready' && status.data !== null && status.data.repo === true ? status.data : null;
+      if (repo === null) return null;
+
+      const label = repo.branch === null ? t('dock.detached') : repo.branch;
+      const ahead = repo.ahead > 0 ? ` ↑${String(repo.ahead)}` : '';
+      const behind = repo.behind > 0 ? ` ↓${String(repo.behind)}` : '';
+      const open = menu !== null;
+      return h(
+        React.Fragment,
+        null,
+        h('style', { key: 'style' }, DOCK_CSS),
+        h(
+          'div',
+          { className: 'tw-git-dock' },
+        h(
+          'button',
+          {
+            type: 'button',
+            className: 'tw-git-dockchip',
+            title: t('dock.branch'),
+            'aria-label': t('dock.branch'),
+            'aria-expanded': open ? 'true' : 'false',
+            onClick: () => {
+              if (open) setMenu(null);
+              else void openMenu();
+            },
+          },
+          h(GitMark, { size: 12 }),
+          h('span', { className: 'tw-git-dockname' }, label),
+          ahead === '' && behind === '' ? null : h('span', { className: 'tw-git-dockmeta' }, `${ahead}${behind}`),
+        ),
+        menu === null
+          ? null
+          : h(
+              'div',
+              { className: 'tw-git-dockmenu' },
+              menu.phase === 'loading' ? h('div', { className: 'tw-git-docknote' }, t('dock.loading')) : null,
+              menu.phase === 'error' ? h('div', { className: 'tw-git-dockerror' }, menu.error) : null,
+              menu.phase === 'ready' && menu.pending === null
+                ? menu.refs.length === 0
+                  ? h('div', { className: 'tw-git-docknote' }, t('dock.empty'))
+                  : menu.refs.map((ref) =>
+                      h(
+                        'button',
+                        {
+                          key: `dock:${ref.name}`,
+                          type: 'button',
+                          className: ref.head === true ? 'tw-git-dockrow current' : 'tw-git-dockrow',
+                          disabled: ref.head === true,
+                          onClick: () => {
+                            setMenu({ ...menu, pending: ref.name, error: null });
+                          },
+                        },
+                        h('span', { className: 'tw-git-dockname' }, ref.name),
+                        ref.head === true ? h('span', { className: 'tw-git-dockmeta' }, '✓') : null,
+                      ),
+                    )
+                : null,
+              menu.pending === null
+                ? null
+                : h(
+                    'div',
+                    { className: 'tw-git-dockconfirm' },
+                    h('div', { className: 'tw-git-docktitle' }, t('dock.confirmTitle', { branch: menu.pending })),
+                    h('div', { className: 'tw-git-docknote' }, t('dock.confirmDetail')),
+                    menu.error === null ? null : h('div', { className: 'tw-git-dockerror' }, menu.error),
+                    h(
+                      'div',
+                      { className: 'tw-git-dockactions' },
+                      h(
+                        'button',
+                        {
+                          type: 'button',
+                          className: 'tw-git-dockbtn',
+                          onClick: () => {
+                            setMenu({ ...menu, pending: null, error: null });
+                          },
+                        },
+                        t('dock.cancel'),
+                      ),
+                      h(
+                        'button',
+                        {
+                          type: 'button',
+                          className: 'tw-git-dockbtn primary',
+                          disabled: menu.busy === true,
+                          onClick: () => {
+                            void confirmSwitch();
+                          },
+                        },
+                        t('dock.confirm'),
+                      ),
+                    ),
+                  ),
+            ),
+        ),
+      );
+    }
+
     /** The tab body: repository state, change list, diff, history and branches. */
     function GitTabBody(props) {
       const { sessionId, useSessions, useTabInfo, t } = props;
@@ -2727,6 +2945,21 @@ window.__ModuleLoader__.load({
             ),
           ),
         'git-panel: header button',
+      );
+      ctx.effect(
+        () =>
+          ctx.slots.inject('conversation.composer.dock', () =>
+            ctx.slots.register(
+              {
+                name: 'conversation.composer.dock',
+                id: 'git-panel-branch',
+                order: -1,
+                locale: NS,
+              },
+              GitBranchDock,
+            ),
+          ),
+        'git-panel: composer branch chip',
       );
     }
 

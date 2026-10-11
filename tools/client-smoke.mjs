@@ -1163,5 +1163,112 @@ function postTo(harness, path) {
   );
 }
 
+// ==============================================================================
+// Scenario: the branch chip under the composer
+// ==============================================================================
+{
+  const h = createHarness();
+  const slot = h.captured.slots.find((entry) => entry.name === 'conversation.composer.dock');
+  check('dock: the plugin claims a cell in the composer dock', slot !== undefined);
+  check(
+    'dock: the cell uses its own id and sits before the built-in stats',
+    slot !== undefined && slot.registered.id === 'git-panel-branch' && slot.registered.order === -1,
+    slot && JSON.stringify(slot.registered),
+  );
+
+  const Dock = slot.registered.component;
+  h.render.component = Dock;
+  h.render.props = {
+    sessionId: 's1',
+    t: h.t,
+    useSessions: (selector) => selector({ byId: { s1: { cwd: ROOT } } }),
+  };
+  h.render();
+  await h.settle();
+
+  check('dock: the chip names the current branch', h.text().includes('main'), h.text());
+  check('dock: the chip shows how far it is from its upstream', h.text().includes('↑1') && h.text().includes('↓2'), h.text());
+  const chip = h.byClass('tw-git-dockchip')[0];
+  check('dock: the chip is a button', chip !== undefined && chip.type === 'button');
+  check(
+    'dock: the chip carries its own pill outline',
+    /\.tw-git-dockchip\{[^}]*border:\.5px solid/.test(h.text()),
+  );
+
+  h.click(chip);
+  await h.settle();
+  const rows = h.byClass('tw-git-dockrow');
+  check('dock: opening the chip lists the local branches', rows.length === 2, rows.length);
+  const currentRow = rows.find((row) => h.hasClass(row, 'current'));
+  check(
+    'dock: the current branch is marked and not offered again',
+    currentRow !== undefined && currentRow.props.disabled === true && h.text(currentRow).includes('main'),
+    currentRow && h.text(currentRow),
+  );
+  check(
+    'dock: remote branches stay out of the list',
+    !rows.some((row) => h.text(row).includes('origin/')),
+    JSON.stringify(rows.map((row) => h.text(row))),
+  );
+
+  // Choosing another branch asks first, and cancelling sends nothing.
+  const beforeChoice = h.fetchCalls.length;
+  h.click(rows.find((row) => h.text(row).includes('feature')));
+  await h.settle();
+  check(
+    'dock: choosing a branch asks for confirmation',
+    h.byClass('tw-git-dockconfirm').length === 1 && h.text().includes('切换到 feature'),
+    h.text(),
+  );
+  const cancel = h.byText('取消')[0];
+  check('dock: the confirmation offers a way out', cancel !== undefined);
+  h.click(cancel);
+  await h.settle();
+  check('dock: cancelling sends no request', h.fetchCalls.length === beforeChoice, h.fetchCalls.length - beforeChoice);
+  check(
+    'dock: cancelling goes back to the list',
+    h.byClass('tw-git-dockconfirm').length === 0 && h.byClass('tw-git-dockrow').length === 2,
+  );
+
+  // Confirming switches the branch through the panel's own checkout route.
+  h.click(h.byClass('tw-git-dockrow').find((row) => h.text(row).includes('feature')));
+  await h.settle();
+  const confirm = h.byText('切换')[0];
+  check(
+    'dock: the confirmation button carries the same outline rule',
+    confirm !== undefined && /\.tw-git-dockbtn\{[^}]*border:\.5px solid/.test(h.text()),
+  );
+  const beforeConfirm = h.fetchCalls.length;
+  h.click(confirm);
+  await h.settle();
+  const checkout = postTo(h, '/checkout');
+  check('dock: confirming posts exactly one checkout', h.fetchCalls.length > beforeConfirm && checkout !== undefined);
+  check(
+    'dock: the checkout names the branch and is not detached',
+    checkout !== undefined && checkout.body.ref === 'feature' && checkout.body.detach === false,
+    checkout && JSON.stringify(checkout.body),
+  );
+  check('dock: the list closes once the switch is under way', h.byClass('tw-git-dockmenu').length === 0);
+
+  // A workspace that is not a repository gets no chip at all.
+  const plain = createHarness({
+    responder: (url) =>
+      new URL(url, 'http://localhost').pathname.endsWith('/status')
+        ? { ok: true, status: { repo: false, cwd: ROOT } }
+        : { ok: true },
+  });
+  const PlainDock = plain.captured.slots.find((entry) => entry.name === 'conversation.composer.dock').registered
+    .component;
+  plain.render.component = PlainDock;
+  plain.render.props = {
+    sessionId: 's1',
+    t: plain.t,
+    useSessions: (selector) => selector({ byId: { s1: { cwd: ROOT } } }),
+  };
+  plain.render();
+  await plain.settle();
+  check('dock: a workspace outside git renders no chip', plain.byClass('tw-git-dockchip').length === 0);
+}
+
 console.log(failures === 0 ? '\nALL PASS' : `\n${String(failures)} FAILURE(S)`);
 process.exit(failures === 0 ? 0 : 1);
