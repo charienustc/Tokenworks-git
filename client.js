@@ -359,6 +359,7 @@ window.__ModuleLoader__.load({
 
     const api = {
       status: (root) => request(`${API}/status?${query({ root })}`),
+      head: (root) => request(`${API}/head?${query({ root })}`),
       diff: (root, side, path) => request(`${API}/diff?${query({ root, side, path })}`),
       log: (root, options) =>
         request(`${API}/log?${query({ root, limit: options.limit, all: options.all ? 1 : 0 })}`),
@@ -1951,6 +1952,8 @@ window.__ModuleLoader__.load({
         return row === undefined ? undefined : row.cwd;
       });
       const [status, setStatus] = useState({ phase: 'idle', data: null });
+      /** `head` is the light route; a Host older than this Client has only `status`. */
+      const [source, setSource] = useState('head');
       /** `null` is closed; otherwise the list, the confirm step and its outcome. */
       const [menu, setMenu] = useState(null);
 
@@ -1960,12 +1963,13 @@ window.__ModuleLoader__.load({
           return;
         }
         try {
-          const payload = await api.status(cwd);
-          setStatus({ phase: 'ready', data: payload.status ?? null });
+          const payload = source === 'head' ? await api.head(cwd) : await api.status(cwd);
+          setStatus({ phase: 'ready', data: (source === 'head' ? payload.head : payload.status) ?? null });
         } catch {
-          setStatus({ phase: 'error', data: null });
+          if (source === 'head') setSource('status');
+          else setStatus({ phase: 'error', data: null });
         }
-      }, [cwd]);
+      }, [cwd, source]);
 
       useEffect(() => {
         void refresh();

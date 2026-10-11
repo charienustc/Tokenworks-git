@@ -11,8 +11,9 @@
  */
 import { spawnSync } from 'node:child_process';
 import { closeSync, mkdirSync, openSync, readFileSync } from 'node:fs';
-import { mkdir, readFile, rm, stat as fsStat, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, stat as fsStat, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
 import { createGit } from '../lib/git.js';
@@ -471,11 +472,42 @@ check(
 );
 await rm(join(scratch, 'injection.txt'), { force: true });
 
+// --- the light branch read used by the composer chip ---------------------------
+const branchHead = await git.head(scratch);
+check(
+  'head: names the branch and the commit without walking the work tree',
+  branchHead.repo === true &&
+    branchHead.unborn === false &&
+    branchHead.branch === 'main' &&
+    branchHead.detached === false &&
+    typeof branchHead.shortHead === 'string' &&
+    branchHead.shortHead.length === 7,
+  JSON.stringify(branchHead),
+);
+check(
+  'head: an upstream is either named or absent',
+  branchHead.upstream === null || typeof branchHead.upstream === 'string',
+  JSON.stringify(branchHead.upstream),
+);
+
 // --- detached checkout --------------------------------------------------------
 const headNow = await git.log(scratch, { limit: 1 });
 await git.checkout(scratch, headNow.commits[0].hash, { detach: true });
 const detached = await git.status(scratch);
 check('checkout: a commit hash detaches HEAD', detached.detached === true, JSON.stringify(detached.detached));
+
+// --- the light branch read used by the composer chip ---------------------------
+const detachedHead = await git.head(scratch);
+check(
+  'head: a detached HEAD reports no branch',
+  detachedHead.repo === true && detachedHead.detached === true && detachedHead.branch === null,
+  JSON.stringify(detachedHead),
+);
+
+const plainDir = await mkdtemp(join(tmpdir(), 'tw-notrepo-'));
+const outsideHead = await git.head(plainDir);
+check('head: a directory outside a work tree reports no repository', outsideHead.repo === false, JSON.stringify(outsideHead));
+await rm(plainDir, { recursive: true, force: true });
 await git.checkout(scratch, 'main', {});
 
 // --- remotes ------------------------------------------------------------------

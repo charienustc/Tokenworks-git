@@ -184,6 +184,25 @@ function createHarness(options = {}) {
     ((url) => {
       const target = new URL(url, 'http://localhost');
       if (target.pathname === `${API}/status`) return statusPayload();
+      if (target.pathname === `${API}/head`) {
+        const { status } = statusPayload();
+        return {
+          ok: true,
+          head: {
+            repo: status.repo,
+            cwd: status.cwd,
+            root: status.root,
+            unborn: status.unborn,
+            detached: status.detached,
+            branch: status.branch,
+            head: status.head,
+            shortHead: status.shortHead,
+            upstream: status.upstream,
+            ahead: status.ahead,
+            behind: status.behind,
+          },
+        };
+      }
       if (target.pathname === `${API}/diff`) {
         return { ok: true, diff: { text: WORKTREE_PATCH, binary: false, truncated: false } };
       }
@@ -1194,6 +1213,12 @@ function postTo(harness, path) {
     'dock: the chip carries its own pill outline',
     /\.tw-git-dockchip\{[^}]*border:\.5px solid/.test(h.text()),
   );
+  check(
+    'dock: the chip reads the light head route, never the full status walk',
+    h.fetchCalls.some((call) => call.url.includes('/git-panel/head')) &&
+      !h.fetchCalls.some((call) => call.url.includes('/git-panel/status')),
+    JSON.stringify(h.fetchCalls.map((call) => call.url)),
+  );
 
   h.click(chip);
   await h.settle();
@@ -1250,12 +1275,41 @@ function postTo(harness, path) {
   );
   check('dock: the list closes once the switch is under way', h.byClass('tw-git-dockmenu').length === 0);
 
+  // A Host older than this Client has no /head yet; the chip must not vanish.
+  const legacy = createHarness({
+    responder: (url) => {
+      const { pathname } = new URL(url, 'http://localhost');
+      if (pathname.endsWith('/head')) return new Error('HTTP 404');
+      if (pathname.endsWith('/status')) return statusPayload();
+      return { ok: true };
+    },
+  });
+  const LegacyDock = legacy.captured.slots.find((entry) => entry.name === 'conversation.composer.dock').registered
+    .component;
+  legacy.render.component = LegacyDock;
+  legacy.render.props = {
+    sessionId: 's1',
+    t: legacy.t,
+    useSessions: (selector) => selector({ byId: { s1: { cwd: ROOT } } }),
+  };
+  legacy.render();
+  await legacy.settle();
+  check(
+    'dock: against a Host without the light route it falls back to status',
+    legacy.byClass('tw-git-dockchip').length === 1 &&
+      legacy.text().includes('main') &&
+      legacy.fetchCalls.some((call) => call.url.includes('/git-panel/status')),
+    JSON.stringify(legacy.fetchCalls.map((call) => call.url)),
+  );
+
   // A workspace that is not a repository gets no chip at all.
   const plain = createHarness({
-    responder: (url) =>
-      new URL(url, 'http://localhost').pathname.endsWith('/status')
-        ? { ok: true, status: { repo: false, cwd: ROOT } }
-        : { ok: true },
+    responder: (url) => {
+      const { pathname } = new URL(url, 'http://localhost');
+      if (pathname.endsWith('/head')) return { ok: true, head: { repo: false, cwd: ROOT } };
+      if (pathname.endsWith('/status')) return { ok: true, status: { repo: false, cwd: ROOT } };
+      return { ok: true };
+    },
   });
   const PlainDock = plain.captured.slots.find((entry) => entry.name === 'conversation.composer.dock').registered
     .component;

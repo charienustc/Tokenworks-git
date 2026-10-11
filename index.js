@@ -168,6 +168,13 @@ export function apply(ctx, config) {
       }),
     },
     {
+      path: `${BASE}/head`,
+      GET: guarded(async (req, res) => {
+        const root = await queryRoot(new URL(String(req.url), 'http://localhost'));
+        json(res, 200, { ok: true, head: await git.head(root) });
+      }),
+    },
+    {
       path: `${BASE}/diff`,
       GET: guarded(async (req, res) => {
         const url = new URL(String(req.url), 'http://localhost');

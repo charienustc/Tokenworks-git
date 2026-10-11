@@ -116,7 +116,7 @@ https://git.ustc.edu.cn/Charien/tokenworks-git-panel.git
 
 | 路径 | 作用 |
 | --- | --- |
-| [`index.js`](index.js) | Host 半：16 个端点、信任栅栏、错误码到 HTTP 状态的映射、写操作串行队列 |
+| [`index.js`](index.js) | Host 半：17 个端点、信任栅栏、错误码到 HTTP 状态的映射、写操作串行队列 |
 | [`lib/git.js`](lib/git.js) | git 适配器：命令表、porcelain v2 解析、名称 / rev / 路径守卫 |
 | [`client.js`](client.js) | Client 半：页签、三个视图、diff 查看器、提交图、确认弹窗、样式 |
 | [`cordis.patch.yml`](cordis.patch.yml) | bundle patch：把插件插进当前 profile |
@@ -130,7 +130,7 @@ https://git.ustc.edu.cn/Charien/tokenworks-git-panel.git
 pnpm test          # 或：node tools/smoke.mjs && node tools/client-smoke.mjs
 ```
 
-Host 63 条 + Client 118 条断言。前者对着临时仓库跑真实 git（含用本地裸仓库做远程同步的端到端），后者用微型 React 运行时渲染面板。
+Host 67 条 + Client 120 条断言。前者对着临时仓库跑真实 git（含用本地裸仓库做远程同步的端到端），后者用微型 React 运行时渲染面板。
 
 代码里没有平台专有分支，但**目前只在 Windows 上实测过**。受限沙箱里 git 的远程命令会因无法创建命名管道而显示 `SKIP`，不受限时真实执行。
 
