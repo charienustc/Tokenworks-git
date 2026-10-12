@@ -3175,15 +3175,16 @@ window.__ModuleLoader__.load({
       }
 
       // A conflict is repository-wide state, so its banner sits above the tabs rather
-      // than inside the changes view, and says which operation is still open. An older
-      // Host reports no operation, and then the banner still explains the state but
-      // cannot offer to abandon it.
+      // than inside the changes view, and says which operation is still open. It stays
+      // up after the last conflict is staged, because the operation is not over until it
+      // is committed. An older Host reports no operation, and then the banner still
+      // explains the state but cannot offer to abandon it.
       const openOperation =
         state.phase === 'ready' && state.status.repo === true ? state.status.operation : null;
       const conflictedCount =
         state.phase === 'ready' && state.status.repo === true ? state.status.changes.conflicted.length : 0;
       const operationNode =
-        conflictedCount === 0
+        conflictedCount === 0 && (openOperation === null || openOperation === undefined)
           ? null
           : h(
               'div',
