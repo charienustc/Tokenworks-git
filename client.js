@@ -370,10 +370,16 @@ window.__ModuleLoader__.load({
     const headlines = (() => {
       const values = new Map();
       const listeners = new Set();
+      /** Sessions accumulate for the life of the window; keep only the recent ones. */
+      const MAX_SESSIONS = 200;
       return {
         get: (sessionId) => values.get(sessionId),
         set(sessionId, value) {
+          // Re-insert, so the cap drops the least recently written session rather than
+          // the one that happened to be seen first.
+          values.delete(sessionId);
           values.set(sessionId, value);
+          while (values.size > MAX_SESSIONS) values.delete(values.keys().next().value);
           for (const listener of listeners) listener();
         },
         subscribe(listener) {
