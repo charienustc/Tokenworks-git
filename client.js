@@ -1085,6 +1085,37 @@ window.__ModuleLoader__.load({
       );
     }
 
+    /**
+     * Parsed patches, kept across renders and mounts.
+     *
+     * The diff pane already memoizes its own parse, but the commit detail re-renders on
+     * every five-second status poll, and parsing a large patch again each time is work
+     * nobody asked for. Keyed by the exact patch text, bounded so it cannot grow.
+     */
+    const patchCache = new Map();
+
+    function parsePatchCached(text) {
+      if (typeof text !== 'string' || text === '') return [];
+      const hit = patchCache.get(text);
+      if (hit !== undefined) return hit;
+      const files = parseFilePatch(text);
+      patchCache.set(text, files);
+      if (patchCache.size > 4) patchCache.delete(patchCache.keys().next().value);
+      return files;
+    }
+
+    /** Graph layouts, keyed by the commit list itself: a reload builds a new array. */
+    const graphCache = new WeakMap();
+
+    function layoutGraphCached(commits) {
+      if (!Array.isArray(commits) || commits.length === 0) return [];
+      const hit = graphCache.get(commits);
+      if (hit !== undefined) return hit;
+      const layout = layoutGraph(commits);
+      graphCache.set(commits, layout);
+      return layout;
+    }
+
     /** The last path segment of a repository root, for the header label. */
     function repoName(root) {
       const text = String(root ?? '').replace(/[\\/]+$/, '');
@@ -1498,7 +1529,7 @@ window.__ModuleLoader__.load({
       } = props;
       if (detail.phase !== 'idle') {
         const commit = detail.commit;
-        const files = commit === null ? [] : parseFilePatch(commit.patch);
+        const files = commit === null ? [] : parsePatchCached(commit.patch);
         const subject = commit === null ? '' : String(commit.message).split('\n')[0];
         return h(
           'div',
@@ -1652,7 +1683,7 @@ window.__ModuleLoader__.load({
         );
       }
       const commits = history.commits ?? [];
-      const layout = layoutGraph(commits);
+      const layout = layoutGraphCached(commits);
       return h(
         'div',
         { className: 'tw-git-body' },
